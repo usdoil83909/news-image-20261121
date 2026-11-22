@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""A deterministic, stdlib-only broadsheet drawn one pixel at a time."""
+"""A deterministic, stdlib-only consequence-ranked broadsheet."""
 
 import hashlib
+import json
 import math
 import os
+import re
 import struct
 import zlib
 
@@ -23,6 +25,7 @@ RULE = (178, 168, 150)
 WHITE = (246, 243, 237)
 PALE = (250, 246, 238)
 MUTED = (151, 145, 134)
+OXBLOOD = (103, 38, 44)
 
 
 class Sheet:
@@ -399,7 +402,10 @@ def caps(sheet, x, y, text, size, col=INK, font=SANS, weight=1,
 
 
 DATE_TEXT = 'SATURDAY 21 NOVEMBER 2026'
-TOTAL_STORIES = 56
+MASTHEAD_DATE = 'Saturday 21 November 2026'
+UTILITY = ('THE WORLD IN ONE DAY | DAY 325 OF 2026 | '
+           'ALL TIMES UTC \u00b7 RANKED BY CONSEQUENCE')
+DATA_PATH = '/root/makefun/news21_data.json'
 
 REGIONS = [
     ('RUSSIA & UKRAINE', 6, RED),
@@ -411,14 +417,19 @@ REGIONS = [
     ('TECH & BUSINESS', 9, (70, 80, 110)),
 ]
 
+SHORT_REGION = {
+    'RUSSIA & UKRAINE': 'RUSSIA-UKRAINE',
+    'TECH & BUSINESS': 'TECH/BUSINESS',
+}
+
 STATS = [
-    ('58,818', 'BITCOIN CLOSE / USD, NOV 21'),
-    ('3,522', 'GOLD PER OUNCE / NOV 21'),
-    ('92.57', 'BRENT CRUDE / USD A BARREL'),
-    ('56,437', 'NIKKEI 225 / FRIDAY CLOSE'),
-    ('74,736', 'GAZA DEATH TOLL / HEALTH AUTH.'),
-    ('148', 'DRONES FIRED / AT UKRAINE'),
-    ('4.0%', 'EURO INFLATION / OCTOBER'),
+    ('74,736', 'GAZA DEAD / HEALTH AUTHORITIES', RED, None),
+    ('148', 'DRONES FIRED / AT UKRAINE', RED, '+117 INTERCEPTED'),
+    ('44bn', 'EU BUDGET / CUT PROPOSED', BLUE, None),
+    ('4.0%', 'EURO INFLATION / OCTOBER', BLUE, '+0.2 PP VS SEPT'),
+    ('5.06%', 'NIKKEI / FRIDAY FALL', RED, None),
+    ('350k', 'GAZA FAMILIES / HOMELESS', RED, None),
+    ('300', 'MISSING / BARGE CAPSIZE', BLUE, None),
 ]
 
 TOP3 = [
@@ -506,72 +517,192 @@ LEFT_OUT = [
 REGION_TINT = {
     'EUROPE': BLUE, 'MIDDLE EAST': AMBER, 'AFRICA': (120, 88, 52),
     'ASIA': (52, 120, 96), 'AMERICAS': (140, 60, 90),
-    'TECH': (70, 80, 110), 'RUSSIA & UKRAINE': RED,
+    'TECH': (70, 80, 110), 'TECHNOLOGY & BUSINESS': (70, 80, 110),
+    'RUSSIA & UKRAINE': RED,
 }
 
+HERO_REGIONS = ('RUSSIA & UKRAINE', 'EUROPE', 'MIDDLE EAST')
+CARD_CITIES = ('ANTALYA', 'HELSINKI', 'EUROPE', 'GAZA', 'BADME', 'TOKYO',
+               'SINALOA', 'WALL STREET', 'SAN FRANCISCO', 'WASHINGTON')
+ALSO_REGIONS = (
+    'RUSSIA & UKRAINE', 'RUSSIA & UKRAINE', 'RUSSIA & UKRAINE',
+    'RUSSIA & UKRAINE', 'RUSSIA & UKRAINE', 'EUROPE', 'EUROPE', 'EUROPE',
+    'EUROPE', 'EUROPE', 'MIDDLE EAST', 'MIDDLE EAST', 'MIDDLE EAST',
+    'MIDDLE EAST', 'AFRICA', 'AFRICA', 'AFRICA', 'ASIA', 'ASIA',
+    'TECHNOLOGY & BUSINESS', 'TECHNOLOGY & BUSINESS', 'ASIA',
+)
+GEOGRAPHIC_REGIONS = ('RUSSIA & UKRAINE', 'EUROPE', 'MIDDLE EAST',
+                      'AFRICA', 'ASIA', 'AMERICAS')
+
+
+def load_reference():
+    try:
+        with open(DATA_PATH, 'r') as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return {}
+
+
+REFERENCE = load_reference()
+DATA_STORIES = REFERENCE.get('stories', [])
+DATA_REGION_NAMES = tuple(REFERENCE.get('regions', [r[0] for r in REGIONS]))
+DATA_REGION_COUNTS = dict((name, 0) for name in DATA_REGION_NAMES)
+for story in DATA_STORIES:
+    if story.get('region') in DATA_REGION_COUNTS:
+        DATA_REGION_COUNTS[story['region']] += 1
+
 STORY_COUNT = len(HEROES) + len(CARDS) + len(ALSO)
+REVIEWED_COUNT = len(DATA_STORIES) or sum(DATA_REGION_COUNTS.values())
+TOTAL_STORIES = REVIEWED_COUNT
+META_LINE = ('%d STORIES \u00b7 %d REGIONS \u00b7 EVERY ONE DATED %s'
+             % (STORY_COUNT, len(DATA_REGION_NAMES), DATE_TEXT))
+
+LEAD_ORDER = [(i + 1, HERO_REGIONS[i]) for i in range(len(HEROES))]
+LEAD_ORDER.extend((len(HEROES) + i + 1, item[1])
+                  for i, item in enumerate(CARDS))
+
+TIME_RE = re.compile(r'\b([01]?[0-9]|2[0-3]):([0-5][0-9])\b')
+
+
+def story_hour(detail):
+    match = TIME_RE.search(detail)
+    if match is None:
+        return None
+    return int(match.group(1)) + int(match.group(2)) / 60.0
+
+
+def timed_stories():
+    found = []
+    for story in DATA_STORIES:
+        hour = story_hour(story.get('detail', ''))
+        if hour is not None:
+            found.append((hour, story.get('id', 0), story.get('region', '')))
+    return found
+
+
+def region_tint(name):
+    return REGION_TINT.get(name, (70, 80, 110))
+
+
+def diamond(sheet, cx, cy, radius, col):
+    sheet.area([(cx * SS, (cy - radius) * SS),
+                ((cx + radius) * SS, cy * SS),
+                (cx * SS, (cy + radius) * SS),
+                ((cx - radius) * SS, cy * SS)], col)
+
+
+def pill(sheet, cx, cy, radius, number, tint, size=8.0):
+    sheet.disc(cx * SS, cy * SS, radius * SS, tint)
+    sheet.disc(cx * SS, cy * SS, radius * SS, WHITE, ring=True, weight=SS)
+    label = str(number)
+    inner = size if len(label) == 1 else size - 1.2
+    put_centered(sheet, cx, cy - inner * 0.62, label, inner, WHITE,
+                 SANS, weight=2, squeeze=0.86)
+
+
+def hero_badge(sheet, cx, cy, number, tint):
+    sheet.disc(cx * SS, cy * SS, 11 * SS, tint, ring=True, weight=SS)
+    sheet.disc(cx * SS, cy * SS, 9.5 * SS, RED)
+    put_centered(sheet, cx, cy - 5.0, str(number), 9.5, WHITE,
+                 SANS, weight=3, squeeze=0.86)
 
 
 def draw_header(sheet):
-    kicker = 'THE WORLD IN ONE DAY'
-    kw = text_width(kicker, 10, SANS, 1.6, 0.9)
-    caps(sheet, 996 - kw, 18, kicker, 10, RED, weight=2,
-         tracking=1.6, squeeze=0.9)
-    tail = ('%d STORIES - %d REGIONS - EVERY ONE DATED %s'
-            % (TOTAL_STORIES, len(REGIONS), DATE_TEXT))
-    caps(sheet, 28, 20, tail, 8.5, GREY, weight=1,
-         tracking=0.7, squeeze=0.88)
+    put_centered(sheet, 512, 18, UTILITY, 9.0, GREY,
+                 weight=2, tracking=0.75, squeeze=0.86)
+    put_centered(sheet, 512, 34, MASTHEAD_DATE, 52, INK, SERIF,
+                 weight=4, tracking=0.4, squeeze=0.92)
+    h_rule(sheet, 28, 101, 968, INK, 2)
+    h_rule(sheet, 28, 105, 968, RULE, 0.7)
 
-    title = 'Saturday 21 November 2026'
-    put_centered(sheet, 512, 36, title, 54, INK, SERIF, weight=4,
-                 tracking=0.4, squeeze=0.92)
-    h_rule(sheet, 28, 94, 968, INK, 2)
-    h_rule(sheet, 28, 98, 968, RULE, 0.7)
+    pill_h = 17.0
+    pill_w = text_width(META_LINE, 9.0, SANS, 0.45, 0.9) + 24
+    left = 512 - pill_w / 2
+    top = 111.0
+    sheet.rect((left + pill_h / 2) * SS, top * SS,
+               (pill_w - pill_h) * SS, pill_h * SS, OXBLOOD)
+    sheet.disc((left + pill_h / 2) * SS, (top + pill_h / 2) * SS,
+               pill_h / 2 * SS, OXBLOOD)
+    sheet.disc((left + pill_w - pill_h / 2) * SS,
+               (top + pill_h / 2) * SS, pill_h / 2 * SS, OXBLOOD)
+    put_centered(sheet, 512, top + 4, META_LINE, 9.0, WHITE, SANS,
+                 weight=2, tracking=0.45, squeeze=0.9)
 
-    lead = '  ·  '.join(TOP3)
-    lead_size = fit_size(lead, 900, 13.0, 9.0, SERIF, 0.2, 0.95)
-    put_centered(sheet, 512, 104, lead, lead_size, GREY, SERIF,
-                 weight=1, tracking=0.2, squeeze=0.95, slant=0.13)
-    h_rule(sheet, 28, 121, 968, INK, 1)
+    lead_size = fit_size('   '.join(TOP3), 900, 13.0, 9.5, SERIF, 0.2, 0.95)
+    widths = [text_width(text, lead_size, SERIF, 0.2, 0.95) for text in TOP3]
+    gap = 24.0
+    pen = 512 - (sum(widths) + gap * (len(TOP3) - 1)) / 2
+    for index, text in enumerate(TOP3):
+        put_text(sheet, pen, 134, text, lead_size, GREY, SERIF, weight=1,
+                 tracking=0.2, squeeze=0.95, slant=0.16)
+        pen += widths[index]
+        if index < len(TOP3) - 1:
+            diamond(sheet, pen + gap / 2, 134 + lead_size * 0.62, 3.6, RED)
+            pen += gap
+
+
+def draw_timeline(sheet):
+    left, right, label_y, axis = 28.0, 996.0, 155.0, 171.0
+    timed = timed_stories()
+    if len(timed) >= 5:
+        chosen = timed[:12]
+        label = 'UTC NEWS TIMELINE'
+        marks = [(number, region, left + hour / 24.0 * (right - left))
+                 for hour, number, region in chosen]
+    else:
+        chosen = LEAD_ORDER[:10]
+        label = 'EVENTS THROUGH THE DAY'
+        step = (right - left) / len(chosen)
+        marks = [(number, region, left + (i + 0.5) * step)
+                 for i, (number, region) in enumerate(chosen)]
+    caps(sheet, left, label_y, label + '  /  00-24 UTC', 8.5, GREY,
+         weight=2, tracking=0.6, squeeze=0.84)
+    h_rule(sheet, left, axis, right - left, RULE, 1)
+    for hour in range(0, 25, 2):
+        px = left + hour / 24.0 * (right - left)
+        v_rule(sheet, px, axis - 2.5, 5, INK, 1)
+        put_centered(sheet, px, axis + 5, '%02d' % hour, 7, GREY,
+                     SANS, weight=1, squeeze=0.9)
+    for number, region, px in marks:
+        pill(sheet, px, axis, 6.5, number, region_tint(region), 7.5)
 
 
 def draw_stats(sheet):
-    top, height, gap = 129, 56, 8
+    top, height, gap = 188, 52, 8
     cell = (968 - gap * (len(STATS) - 1)) / len(STATS)
-    for index, (figure, caption) in enumerate(STATS):
+    for index, (figure, caption, tint, delta) in enumerate(STATS):
         x = 28 + index * (cell + gap)
-        v_rule(sheet, x, top + 3, height - 6, RED, 2)
-        size = fit_size(figure, cell - 14, 24.0, 14.0, SANS, 0.2, 0.9)
-        put_text(sheet, x + 8, top + 3, figure, size, INK, SANS,
-                 weight=3, tracking=0.2, squeeze=0.9)
-        pieces = [part.strip() for part in caption.split('/')]
-        for row, part in enumerate(pieces[:2]):
-            caps(sheet, x + 8, top + 30 + row * 11.5, part, 9.5,
-                 GREY, weight=1, tracking=0.35, squeeze=0.86)
-    h_rule(sheet, 28, 187, 968, RULE, 0.7)
-
-
-SHORT_REGION = {
-    'RUSSIA & UKRAINE': 'RUSSIA-UKRAINE',
-    'TECH & BUSINESS': 'TECH/BUSINESS',
-}
+        v_rule(sheet, x, top + 2, height - 4, tint, 2)
+        size = fit_size(figure, cell - 14, 19.0, 13.0, SANS, 0.1, 0.88)
+        put_text(sheet, x + 8, top, figure, size, tint, SANS,
+                 weight=3, tracking=0.1, squeeze=0.88)
+        for row, part in enumerate([p.strip() for p in caption.split('/')][:2]):
+            caps(sheet, x + 8, top + 25 + row * 9.5, part, 8.2,
+                 GREY, weight=1, tracking=0.25, squeeze=0.84)
+        if delta:
+            caps(sheet, x + 8, top + 44, delta, 7.5, RED,
+                 weight=2, tracking=0.2, squeeze=0.84)
+    h_rule(sheet, 28, 242, 968, RULE, 0.7)
 
 
 def draw_regions(sheet):
-    top, height = 191, 26
-    total = sum(count for _, count, _ in REGIONS)
+    top, height = 246, 24
+    counts = [(name, DATA_REGION_COUNTS.get(name, 0), region_tint(name))
+              for name in GEOGRAPHIC_REGIONS]
+    total = sum(count for _, count, _ in counts) or 1
     cursor = 28.0
-    for name, count, tint in REGIONS:
+    for name, count, tint in counts:
         width = 968.0 * count / total
         sheet.rect(cursor * SS, top * SS, width * SS, height * SS, tint)
         label = '%s %d' % (SHORT_REGION.get(name, name), count)
-        size = fit_size(label, width - 10, 9.5, 7.5, SANS, 0.25, 0.78)
-        put_centered(sheet, cursor + width / 2, top + 7, label, size,
-                     WHITE, SANS, weight=2, tracking=0.25, squeeze=0.78)
-        sheet.rect(int((cursor + width - 1) * SS), top * SS, SS, height * SS, PAPER)
+        size = fit_size(label, width - 8, 9.0, 7.0, SANS, 0.2, 0.78)
+        put_centered(sheet, cursor + width / 2, top + 6, label, size,
+                     WHITE, SANS, weight=2, tracking=0.2, squeeze=0.78)
+        sheet.rect((cursor + width - 1) * SS, top * SS, SS, height * SS, PAPER)
         cursor += width
     h_rule(sheet, 28, top, 968, RULE, 0.7)
     h_rule(sheet, 28, top + height, 968, RULE, 0.7)
+
 
 
 def art_missile(sheet, x, y, w, h):
@@ -640,27 +771,41 @@ HERO_ART = {'missile': art_missile, 'robot': art_robot, 'tanker': art_tanker}
 
 
 def draw_heroes(sheet):
-    top, height, gap = 223, 166, 12
+    top, height, gap = 278, 160, 12
     width = (968 - gap * 2) / 3
     for index, (tag, fact, source, art) in enumerate(HEROES):
         x = 28 + index * (width + gap)
+        tint = region_tint(HERO_REGIONS[index])
         frame(sheet, x, top, width, height, DARK)
-        h_rule(sheet, x, top, width, RED, 2)
-        tag_size = fit_size(tag, width - 24, 9.5, 7.5, SANS, 0.5, 0.84)
-        tag_width = text_width(tag, tag_size, SANS, 0.5, 0.84) + 14
-        sheet.rect((x + 9) * SS, (top + 9) * SS, tag_width * SS, 18 * SS, RED)
-        caps(sheet, x + 16, top + 13, tag, tag_size, WHITE,
-             weight=2, tracking=0.5, squeeze=0.84)
-        fact_size = 11.0
-        _, used = put_wrapped(sheet, x + 10, top + 34, fact, fact_size,
-                              width - 20, WHITE, SANS, weight=2,
-                              tracking=0.1, squeeze=0.94, leading=13)
-        art_y = top + 34 + used + 5
-        art_h = top + height - 24 - art_y
-        if art_h > 24:
+        sheet.rect(x * SS, top * SS, width * SS, 15 * SS, OXBLOOD)
+        caps(sheet, x + 31, top + 4, HERO_REGIONS[index], 8.5, WHITE,
+             weight=2, tracking=0.6, squeeze=0.84)
+        hero_badge(sheet, x + 15, top + 11, index + 1, tint)
+
+        head_size = 15.5
+        head_lines = clipped(tag, head_size, width - 20, 2, SERIF, 0.1, 0.94)
+        for row, line in enumerate(head_lines):
+            put_text(sheet, x + 10, top + 21 + row * 17, line, head_size,
+                     WHITE, SERIF, weight=2, tracking=0.1, squeeze=0.94)
+        used = (len(head_lines) - 1) * 17 + head_size * 26.0 / 21.0
+        detail_y = top + 25 + used
+
+        detail_size, detail_lead = 9.0, 11.0
+        detail_lines = clipped(fact, detail_size, width - 20, 3,
+                               SANS, 0, 0.95)
+        for row, line in enumerate(detail_lines):
+            put_text(sheet, x + 10, detail_y + row * detail_lead, line,
+                     detail_size, (222, 224, 220), SANS,
+                     weight=1, squeeze=0.95)
+        used = ((len(detail_lines) - 1) * detail_lead
+                + detail_size * 26.0 / 21.0)
+        art_y = detail_y + used + 3
+        art_h = (top + height - 17) - art_y
+        if art_h > 22:
             HERO_ART[art](sheet, x + 10, art_y, width - 20, art_h)
-        caps(sheet, x + 10, top + height - 15, source, 8, MUTED,
+        caps(sheet, x + 10, top + height - 14, source, 8, MUTED,
              weight=1, tracking=0.4, squeeze=0.86)
+
 
 
 def clipped(text, size, max_width, count, font=SANS, tracking=0.0, squeeze=1.0):
@@ -674,73 +819,104 @@ def clipped(text, size, max_width, count, font=SANS, tracking=0.0, squeeze=1.0):
     return lines
 
 
-def card_icon(sheet, x, y, kind, tint):
-    span = 15
+def card_icon(sheet, x, y, kind, tint, span=15):
+    k = span / 15.0
     sheet.rect(x * SS, y * SS, span * SS, span * SS, tint)
-    cx, cy = x + span / 2, y + span / 2
+    cx, cy = x + span / 2.0, y + span / 2.0
+
+    def p(px, py):
+        return (px * SS, py * SS)
+
     if kind == 'flame':
-        sheet.area([(cx * SS, (y + 2) * SS), ((cx + 4) * SS, (y + 9) * SS),
-                    (cx * SS, (y + 13) * SS), ((cx - 4) * SS, (y + 9) * SS)], WHITE)
+        sheet.area([p(cx, y + 2 * k), p(cx + 4 * k, y + 9 * k),
+                    p(cx, y + 13 * k), p(cx - 4 * k, y + 9 * k)], WHITE)
     elif kind == 'radar':
-        sheet.disc(cx * SS, cy * SS, 5 * SS, WHITE, ring=True, weight=SS)
-        sheet.seg(cx * SS, cy * SS, (cx + 4) * SS, (cy - 3) * SS, WHITE, SS)
+        sheet.disc(cx * SS, cy * SS, 5 * k * SS, WHITE,
+                   ring=True, weight=SS)
+        sheet.seg(cx * SS, cy * SS, (cx + 4 * k) * SS, (cy - 3 * k) * SS,
+                  WHITE, SS)
     elif kind == 'crowd':
         for dx, dy in ((-4, 4), (0, 1), (4, 4)):
-            sheet.disc((cx + dx) * SS, (cy + dy) * SS, 2 * SS, WHITE)
+            sheet.disc((cx + dx * k) * SS, (cy + dy * k) * SS,
+                       2 * k * SS, WHITE)
     elif kind == 'aid':
-        sheet.rect((cx - 1) * SS, (y + 2) * SS, 2 * SS, 11 * SS, WHITE)
-        sheet.rect((x + 2) * SS, (cy - 1) * SS, 11 * SS, 2 * SS, WHITE)
+        sheet.rect((cx - k) * SS, (y + 2 * k) * SS,
+                   2 * k * SS, 11 * k * SS, WHITE)
+        sheet.rect((x + 2 * k) * SS, (cy - k) * SS,
+                   11 * k * SS, 2 * k * SS, WHITE)
     elif kind == 'border':
-        sheet.seg((x + 2) * SS, (cy + 4) * SS, (x + 13) * SS, (cy - 4) * SS, WHITE, 2 * SS)
-        sheet.seg((x + 2) * SS, (cy - 4) * SS, (x + 13) * SS, (cy + 4) * SS, WHITE, 2 * SS)
+        sheet.seg((x + 2 * k) * SS, (cy + 4 * k) * SS,
+                  (x + 13 * k) * SS, (cy - 4 * k) * SS, WHITE, 2 * SS)
+        sheet.seg((x + 2 * k) * SS, (cy - 4 * k) * SS,
+                  (x + 13 * k) * SS, (cy + 4 * k) * SS, WHITE, 2 * SS)
     elif kind == 'chart':
-        sheet.outline([((x + 2) * SS, (y + 3) * SS), ((x + 6) * SS, (y + 7) * SS),
-                       ((x + 9) * SS, (y + 5) * SS), ((x + 13) * SS, (y + 12) * SS)],
+        sheet.outline([p(x + 2 * k, y + 3 * k), p(x + 6 * k, y + 7 * k),
+                       p(x + 9 * k, y + 5 * k), p(x + 13 * k, y + 12 * k)],
                       WHITE, 2 * SS)
     elif kind == 'badge':
-        sheet.disc(cx * SS, cy * SS, 5 * SS, WHITE)
-        sheet.disc(cx * SS, cy * SS, 2 * SS, tint)
+        sheet.disc(cx * SS, cy * SS, 5 * k * SS, WHITE)
+        sheet.disc(cx * SS, cy * SS, 2 * k * SS, tint)
     elif kind == 'coin':
-        sheet.disc(cx * SS, cy * SS, 5 * SS, WHITE, ring=True, weight=2 * SS)
-        sheet.seg((cx - 2) * SS, cy * SS, (cx + 2) * SS, cy * SS, WHITE, SS)
+        sheet.disc(cx * SS, cy * SS, 5 * k * SS, WHITE,
+                   ring=True, weight=2 * SS)
+        sheet.seg((cx - 2 * k) * SS, cy * SS, (cx + 2 * k) * SS, cy * SS,
+                  WHITE, SS)
     elif kind == 'chip':
-        sheet.rect((cx - 4) * SS, (cy - 4) * SS, 8 * SS, 8 * SS, WHITE)
+        sheet.rect((cx - 4 * k) * SS, (cy - 4 * k) * SS,
+                   8 * k * SS, 8 * k * SS, WHITE)
         for off in (-4, 0, 4):
-            sheet.seg((cx + off) * SS, (cy - 6) * SS, (cx + off) * SS, (cy - 4) * SS, WHITE, SS)
-            sheet.seg((cx + off) * SS, (cy + 4) * SS, (cx + off) * SS, (cy + 6) * SS, WHITE, SS)
+            sheet.seg((cx + off * k) * SS, (cy - 6 * k) * SS,
+                      (cx + off * k) * SS, (cy - 4 * k) * SS, WHITE, SS)
+            sheet.seg((cx + off * k) * SS, (cy + 4 * k) * SS,
+                      (cx + off * k) * SS, (cy + 6 * k) * SS, WHITE, SS)
     else:
-        sheet.area([((cx - 5) * SS, (cy - 1) * SS), (cx * SS, (cy - 6) * SS),
-                    ((cx + 5) * SS, (cy - 1) * SS)], WHITE)
+        sheet.area([p(cx - 5 * k, cy - k), p(cx, cy - 6 * k),
+                    p(cx + 5 * k, cy - k)], WHITE)
         for off in (-4, 0, 4):
-            sheet.rect((cx + off - 1) * SS, cy * SS, 2 * SS, 6 * SS, WHITE)
+            sheet.rect((cx + off * k - k) * SS, cy * SS,
+                       2 * k * SS, 6 * k * SS, WHITE)
 
 
 def draw_cards(sheet):
-    top, height, gap_x, gap_y = 397, 94, 10, 10
+    top, height, gap_x, gap_y = 446, 88, 10, 10
     width = (968 - gap_x * 4) / 5
-    for index, (number, region, topic, headline, body, source, icon) in enumerate(CARDS):
+    gap_above_source, gap_below_source = 8.0, 10.0
+    for index, (raw, region, topic, headline, body, source, icon) in enumerate(CARDS):
         row, column = divmod(index, 5)
         x = 28 + column * (width + gap_x)
         y = top + row * (height + gap_y)
+        number = len(HEROES) + index + 1
+        tint = region_tint(region)
         frame(sheet, x, y, width, height, PALE, RULE, 0.7)
-        tint = REGION_TINT.get(region, BLUE)
-        h_rule(sheet, x, y, width, tint, 4)
-        card_icon(sheet, x + width - 21, y + 9, icon, tint)
-        put_text(sheet, x + 7, y + 8, str(number), 11, RED, SANS, weight=3)
-        label = region + ' - ' + topic
-        label_size = fit_size(label, width - 42, 8.0, 6.5, SANS, 0.2, 0.8)
-        caps(sheet, x + 24, y + 10, label, label_size, GREY,
-             weight=1, tracking=0.2, squeeze=0.8)
-        head_lines = clipped(headline, 9.8, width - 14, 2, SANS, 0.05, 0.93)
-        for line_no, line in enumerate(head_lines):
-            put_text(sheet, x + 7, y + 25 + line_no * 11.5, line, 9.8,
-                     INK, SANS, weight=2, tracking=0.05, squeeze=0.93)
-        body_lines = clipped(body, 8.0, width - 14, 3, SANS, 0, 0.95)
-        for line_no, line in enumerate(body_lines):
-            put_text(sheet, x + 7, y + 50 + line_no * 9, line, 8.0,
-                     (60, 56, 50), SANS, weight=1, squeeze=0.95)
-        caps(sheet, x + 7, y + height - 12, source, 7.5, (116, 110, 100),
-             weight=1, tracking=0.3, squeeze=0.86)
+        sheet.rect(x * SS, y * SS, width * SS, 15 * SS, OXBLOOD)
+
+        city = CARD_CITIES[index]
+        tag_size = 7.2
+        tag_width = text_width(city, tag_size, SANS, 0.2, 0.84) + 9
+        sheet.rect((x + 5) * SS, (y + 3) * SS, tag_width * SS, 10 * SS, RED)
+        caps(sheet, x + 9, y + 4.5, city, tag_size, WHITE,
+             weight=2, tracking=0.2, squeeze=0.84)
+        card_icon(sheet, x + width - 18, y + 2, icon, tint, 11)
+        pill(sheet, x + width - 14, y + 24, 7, number, tint, 8.5)
+
+        head_size, head_lead = 9.0, 10.0
+        for line_no, line in enumerate(clipped(headline, head_size,
+                                                width - 30, 2, SANS, 0, 0.93)):
+            put_text(sheet, x + 6, y + 21 + line_no * head_lead, line,
+                     head_size, INK, SANS, weight=2, squeeze=0.93)
+
+        source_size = 7.0
+        source_y = y + height - gap_below_source - 8.0
+        detail_size, detail_lead = 7.5, 9.5
+        detail_h = detail_lead + detail_size * 26.0 / 21.0
+        detail_y = source_y - gap_above_source - detail_h
+        for line_no, line in enumerate(clipped(body, detail_size,
+                                                width - 12, 2, SANS, 0, 0.95)):
+            put_text(sheet, x + 6, detail_y + line_no * detail_lead, line,
+                     detail_size, (60, 56, 50), SANS, weight=1, squeeze=0.95)
+        caps(sheet, x + 6, source_y, source, source_size, (116, 110, 100),
+             weight=1, tracking=0.25, squeeze=0.86)
+
 
 
 LAND_SHAPES = [
@@ -758,87 +934,104 @@ LAND_SHAPES = [
 ]
 
 
+def inside_polygon(px, py, points):
+    inside = False
+    previous = len(points) - 1
+    for index, (xi, yi) in enumerate(points):
+        xj, yj = points[previous]
+        if (yi > py) != (yj > py):
+            cross = (xj - xi) * (py - yi) / (yj - yi) + xi
+            if px < cross:
+                inside = not inside
+        previous = index
+    return inside
+
+
 def draw_map(sheet, x, y, width, height):
     frame(sheet, x, y, width, height, PAPER, RULE, 0.7)
-    caps(sheet, x + 8, y + 6, 'WHERE THE DAY HAPPENED', 9.5, BLUE,
+    caps(sheet, x + 8, y + 6, 'WHERE IT HAPPENED', 9.5, BLUE,
          weight=2, tracking=0.7, squeeze=0.86)
-    mx, my = x + 10, y + 25
-    mw, mh = width - 20, height - 36
+    mx, my = x + 8, y + 20
+    mw, mh = width - 16, height - 28
 
     def project(lon, lat):
         return (mx + (lon + 180.0) / 360.0 * mw,
                 my + (90.0 - lat) / 180.0 * mh)
 
-    for gy in range(0, int(mh), 15):
-        for gx in range(0, int(mw), 15):
-            sheet.rect((mx + gx) * SS, (my + gy) * SS, SS, SS, RULE)
-    for shape in LAND_SHAPES:
-        pts = [project(lon, lat) for lon, lat in shape]
-        scaled = [(px * SS, py * SS) for px, py in pts]
-        sheet.area(scaled, (166, 181, 201))
-        sheet.outline(scaled + [scaled[0]], BLUE, SS, closed=False)
-    for number, city, text, source, lon, lat in ALSO:
+    shapes = [[project(lon, lat) for lon, lat in shape]
+              for shape in LAND_SHAPES]
+    for gy in range(3, int(mh), 7):
+        py = my + gy
+        for gx in range(3, int(mw), 7):
+            px = mx + gx
+            if any(inside_polygon(px, py, shape) for shape in shapes):
+                sheet.rect(px * SS, py * SS, SS, SS, (150, 169, 190))
+    caps(sheet, mx, my + mh - 9, 'DOT MAP  /  NUMBERED PINS = RANKED STORIES',
+         7.0, MUTED, weight=1, tracking=0.25, squeeze=0.84)
+    for index, item in enumerate(ALSO):
+        _, _, _, _, lon, lat = item
         px, py = project(lon, lat)
-        sheet.disc(px * SS, py * SS, 8 * SS, RED)
-        sheet.disc(px * SS, py * SS, 8 * SS, WHITE, ring=True, weight=SS)
-        label = str(number)
-        put_centered(sheet, px, py - 4, label, 7.5, WHITE, SANS, weight=2)
+        pill(sheet, px, py, 6, len(HEROES) + len(CARDS) + index + 1,
+             region_tint(ALSO_REGIONS[index]), 6.6)
 
 
 def draw_also(sheet, x, y, width, height):
-    put_text(sheet, x, y, 'ALSO ON ' + DATE_TEXT, 11, RED, SANS,
-             weight=3, tracking=0.4, squeeze=0.9)
-    h_rule(sheet, x, y + 17, width, INK, 1)
+    caps(sheet, x, y, 'FROM EVERYWHERE ELSE  /  %d-%d'
+         % (len(HEROES) + len(CARDS) + 1, STORY_COUNT), 10, RED,
+         weight=3, tracking=0.5, squeeze=0.86)
+    h_rule(sheet, x, y + 16, width, INK, 1)
     column_width = (width - 12) / 2
     half = (len(ALSO) + 1) // 2
+    row_height = (height - 24) / half
     for index, item in enumerate(ALSO):
-        number, city, text, source, _, _ = item
+        _, city, text, source, _, _ = item
         column, row = divmod(index, half)
         cx = x + column * (column_width + 12)
-        ry = y + 24 + row * 21.0
-        put_text(sheet, cx, ry, str(number), 8.5, RED, SANS, weight=2)
-        city_size = fit_size(city, column_width - 76, 8.5, 6.5, SANS, 0.2, 0.82)
-        caps(sheet, cx + 17, ry, city, city_size, INK,
-             weight=2, tracking=0.2, squeeze=0.82)
-        src_w = text_width(source, 7, SANS, 0, 0.84)
-        if src_w < column_width - 130:
-            caps(sheet, cx + column_width - src_w, ry + 1, source, 7,
-                 MUTED, weight=1, squeeze=0.84)
-        line = clipped(text, 8, column_width - 20, 1, SANS, 0, 0.94)[0]
-        put_text(sheet, cx + 17, ry + 10, line, 8, (64, 60, 54),
-                 SANS, weight=1, squeeze=0.94)
+        ry = y + 20 + row * row_height
+        pill(sheet, cx + 5, ry + 4, 4.7,
+             len(HEROES) + len(CARDS) + index + 1,
+             region_tint(ALSO_REGIONS[index]), 6.2)
+        city_size = fit_size(city, 65, 7.2, 5.6, SANS, 0.15, 0.82)
+        caps(sheet, cx + 13, ry, city, city_size, INK,
+             weight=2, tracking=0.15, squeeze=0.82)
+        line = clipped(text, 7.2, column_width - 82, 1, SANS, 0, 0.93)[0]
+        put_text(sheet, cx + 80, ry, line, 7.2, (64, 60, 54),
+                 SANS, weight=1, squeeze=0.93)
 
 
 def draw_bottom(sheet):
-    draw_also(sheet, 28, 603, 586, 258)
-    draw_map(sheet, 624, 603, 372, 258)
+    map_width = 968 * 0.45
+    list_width = 968 - map_width - 12
+    draw_map(sheet, 28, 640, map_width, 240)
+    draw_also(sheet, 28 + map_width + 12, 640, list_width, 240)
 
 
 def draw_datecheck(sheet):
-    frame(sheet, 28, 869, 968, 74, PAPER, RED, 1.5)
-    sheet.rect(38 * SS, 879 * SS, 92 * SS, 18 * SS, RED)
-    caps(sheet, 44, 882, 'DATE CHECK', 9, WHITE, weight=2,
+    frame(sheet, 28, 886, 968, 36, PAPER, RED, 1.5)
+    sheet.rect(36 * SS, 894 * SS, 84 * SS, 18 * SS, RED)
+    caps(sheet, 42, 897, 'DATE CHECK', 8.5, WHITE, weight=2,
          tracking=0.5, squeeze=0.86)
-    omitted = ("Left out as Friday 20 November's news: " + '; '.join(LEFT_OUT) + '.')
-    lines = clipped(omitted, 10, 840, 2, SANS, 0.1, 0.95)
-    for row, line in enumerate(lines):
-        put_text(sheet, 142, 879 + row * 13, line, 10, INK, SANS,
-                 weight=1, tracking=0.1, squeeze=0.95)
-    closing = ('Every story here happened, or was first reported, '
-               'on %s.' % DATE_TEXT)
-    put_text(sheet, 38, 910, closing, 10.5, RED, SANS,
+    omitted = ("Left out as Friday 20 November's news: "
+               + '; '.join(LEFT_OUT) + '.')
+    line = clipped(omitted, 9, 840, 1, SANS, 0.1, 0.95)[0]
+    put_text(sheet, 130, 895, line, 9, INK, SANS,
+             weight=1, tracking=0.1, squeeze=0.95)
+    closing = ('Every story here happened, or was first reported, on %s.'
+               % DATE_TEXT)
+    put_text(sheet, 130, 909, closing, 9, RED, SANS,
              weight=2, tracking=0.15, squeeze=0.95)
 
 
 def draw_footer(sheet):
-    h_rule(sheet, 28, 952, 968, INK, 1)
-    note = ('SOURCES: AP, AFP, Reuters, BBC, Al Jazeera, Jiji Press, RBC-Ukraine, '
-            'POLITICO, Rio Times and the agencies credited on every story.')
-    put_centered(sheet, 512, 960, note, 8.5, GREY, SANS, weight=1,
+    h_rule(sheet, 28, 936, 968, INK, 1)
+    note = ('SOURCES: AP, AFP, Reuters, BBC, Al Jazeera, Jiji Press, '
+            'RBC-Ukraine, POLITICO, Rio Times and the agencies credited '
+            'on every story.')
+    put_centered(sheet, 512, 944, note, 8.5, GREY, SANS, weight=1,
                  tracking=0.25, squeeze=0.9)
     note2 = ('%d STORIES REVIEWED - %d PRESENTED - ALL DATED %s'
-             % (TOTAL_STORIES, STORY_COUNT, DATE_TEXT))
-    put_centered(sheet, 512, 977, note2, 8, MUTED, SANS, weight=1,
+             % (REVIEWED_COUNT, STORY_COUNT, DATE_TEXT))
+    put_centered(sheet, 512, 962, note2, 8, MUTED, SANS, weight=1,
                  tracking=0.5, squeeze=0.9)
 
 
@@ -861,6 +1054,7 @@ def main():
               % (hashlib.sha256(blob).hexdigest(), len(blob)))
         return
     draw_header(sheet)
+    draw_timeline(sheet)
     draw_stats(sheet)
     draw_regions(sheet)
     draw_heroes(sheet)
