@@ -160,125 +160,146 @@ def write_png(path, width, height, rgb):
     return blob
 
 
-# JHF stroke outlines, re-keyed into a compact per-glyph record:
-# "symbol|left,right|x,y;x,y/x,y;x,y".  Order is digits, capitals,
-# lowercase, marks rather than the source table's ASCII sequence.
-FONT_RAW = r"""
-0|-10,10|-1,-12;-4,-11;-6,-8;-8,-3;-9,1;-9,5;-8,9;-6,12;-4,13;-1,14;1,14;4,13;6,12;8,9;9,5;9,1;8,-3;6,-8;4,-11;1,-12;-1,-12
-1|-10,10|-4,-8;-2,-9;1,-12;1,14
-2|-10,10|-6,-6;-6,-7;-5,-9;-4,-11;-2,-12;2,-12;4,-11;5,-9;6,-7;6,-5;5,-3;3,0;-7,10;7,10
-3|-10,10|-5,-12;6,-12;0,-2;3,-2;5,-1;6,0;7,3;7,5;6,8;4,10;1,11;-2,11;-5,10;-6,9;-7,7
-4|-10,10|3,14;3,-12/-8,5;8,5
-5|-10,10|5,-12;-5,-12;-5,-1;-5,-2;-2,-3;1,-3;4,-2;6,0;7,3;7,5;6,8;4,10;1,11;-2,11;-5,10;-6,9;-7,7
-6|-10,10|6,-9;5,-11;2,-12;0,-12;-3,-11;-5,-8;-6,-3;-6,-2;-5,1;-3,3;0,4;1,4;4,3;6,1;7,-2;7,-3;6,-6;4,-8;1,-9;0,-9;-3,-8;-5,-6;-6,-3
-7|-10,10|7,-12;-3,14
-8|-10,10|-2,-12;-5,-11;-6,-9;-6,-7;-5,-5;-4,-4;-1,-3;3,-2;5,-1;6,1;7,3;7,6;6,8;5,9;2,10;-2,10;-5,9;-6,8;-7,6;-7,3;-6,1;-5,-1;-3,-2;1,-3;4,-4;5,-5;6,-7;6,-9;5,-11;-2,-12
-9|-10,10|6,-5;5,-8;3,-10;0,-11;-1,-11;-4,-10;-6,-8;-7,-5;-7,-4;-6,-1;-4,1;-1,2;0,2;3,1;5,-1;6,-4;6,-5;5,-10;3,-12;0,-13
-A|-10,10|-8,14;-8,-12/-8,-12;8,-12/-5,2;5,2
-B|-11,11|-9,14;-9,-12/-9,14;2,14;5,13;6,12;7,10;7,8;6,6;5,5;2,4;-9,4/2,4;5,3;6,2;7,0;7,-3;6,-5;5,-6;2,-7;-9,-7
-C|-11,11|8,7;7,9;5,11;3,12;0,13;-3,13;-6,12;-8,10;-9,8;-10,5;-10,-1;-9,-4;-8,-6;-6,-8;-3,-9;0,-9;3,-8;5,-6;7,-4;8,-1
-D|-11,11|-9,14;-9,-12/-9,14;0,14;3,13;5,11;6,9;7,6;7,0;6,-3;5,-5;3,-7;0,-8;-9,-8
-E|-10,10|-8,14;-8,-12/-8,14;6,14/-8,2;0,2/-8,-12;6,-12
-F|-10,10|-8,14;-8,-12/-8,14;6,14/-8,2;0,2
-G|-11,11|8,7;7,9;5,11;3,12;0,13;-3,13;-6,12;-8,10;-9,8;-10,5;-10,-1;-9,-4;-8,-6;-6,-8;-3,-9;0,-9;3,-8;5,-6;7,-4;8,-1;8,3/3,3;8,3
-H|-11,11|-9,14;-9,-12/7,14;7,-12/-9,2;7,2
-I|-5,5|0,14;0,-12
-J|-9,9|4,14;4,-7;3,-10;1,-12;-1,-12;-3,-10;-4,-8
-K|-11,11|-9,14;-9,-12/7,14;-9,-2/-2,5;7,-12
-L|-10,10|-8,14;-8,-12/-8,-12;6,-12
-M|-12,12|-10,14;-10,-12/0,14;0,-12/10,14;10,-12/-10,14;0,-12;10,14
-N|-11,11|-9,14;-9,-12/7,14;7,-12/-9,14;7,-12
-O|-11,11|-2,14;-5,13;-7,11;-8,9;-9,6;-9,0;-8,-3;-7,-5;-5,-7;-2,-8;2,-8;5,-7;7,-5;8,-3;9,0;9,6;8,9;7,11;5,13;2,14;-2,14
-P|-11,11|-9,14;-9,-12/-9,14;2,14;5,13;6,12;7,10;7,7;6,5;5,4;2,3;-9,3
-Q|-11,11|-2,14;-5,13;-7,11;-8,9;-9,6;-9,0;-8,-3;-7,-5;-5,-7;-2,-8;2,-8;5,-7;7,-5;8,-3;9,0;9,6;8,9;7,11;5,13;2,14;-2,14/1,-5;7,-11
-R|-11,11|-9,14;-9,-12/-9,14;2,14;5,13;6,12;7,10;7,8;6,6;5,5;2,4;-9,4/0,4;7,-12
-S|-10,10|7,9;5,11;2,12;-2,12;-5,11;-7,9;-7,7;-6,5;-5,4;-3,3;3,1;5,0;6,-1;7,-3;7,-6;5,-8;2,-9;-2,-9;-5,-8;-7,-6
-T|-10,10|0,14;0,-12/-9,14;9,14
-U|-11,11|-9,14;-9,-3;-8,-6;-6,-8;-3,-9;0,-9;3,-8;5,-6;6,-3;7,0;7,14
-V|-10,10|-10,14;0,-12/10,14;0,-12
-W|-13,13|-12,14;-8,-12/-4,14;-8,-12/-4,14;4,-12/12,14;4,-12
-X|-10,10|-9,14;7,-12/7,14;-9,-12
-Y|-10,10|-10,14;0,0;10,14/0,0;0,-12
-Z|-10,10|7,14;-9,-12/-9,14;7,14/-9,-12;7,-12
-a|-8,8|6,9;6,-3/-2,9;1,9;3,8;4,7;5,5;6,2;6,-1;5,-4;4,-5;3,-6;1,-7;-2,-7;-4,-6;-5,-5;-6,-3;-6,-1;-5,2;-4,4;-2,5;1,5;3,4;4,3;6,0
-b|-8,8|-8,14;-8,-12/-8,2;-6,4;-4,5;-1,6;2,6;4,5;6,3;7,0;7,-2;6,-5;4,-7;2,-8;-1,-8;-4,-7;-6,-5;-8,-2
-c|-8,8|6,4;5,6;3,8;1,9;-2,9;-4,8;-6,6;-7,3;-7,1;-6,-2;-4,-4;-2,-5;1,-5;3,-4;5,-2;6,0
-d|-8,8|6,14;6,-12/6,2;4,4;2,5;-1,6;-4,6;-6,5;-7,3;-8,0;-8,-2;-7,-5;-6,-7;-4,-8;-1,-8;2,-7;4,-5;6,-2
-e|-8,8|-7,1;6,1;6,3;5,5;4,6;2,7;-1,7;-3,6;-5,4;-6,1;-6,-1;-5,-4;-3,-6;-1,-7;2,-7;4,-6;6,-4
-f|-6,6|5,14;5,-11;4,-13;2,-14;0,-14;-2,-13;-3,-11/-3,5;4,5
-g|-8,8|6,9;6,-7;5,-10;4,-11;2,-12;-1,-12;-3,-11/6,2;4,4;2,5;-1,6;-4,6;-6,5;-7,3;-8,0;-8,-2;-7,-5;-6,-7;-4,-8;-1,-8;2,-7;4,-5;6,-2
-h|-8,8|-6,14;-6,-12/-6,2;-4,4;-2,5;1,6;3,6;5,5;6,2;6,-12
-i|-4,4|-1,14;-2,13;-1,12;0,13;-1,14/-1,9;-1,-12
-j|-5,5|0,14;-1,13;0,12;1,13;0,14/0,9;0,-11;-1,-13;-3,-14;-5,-14
-k|-8,8|-6,14;-6,-12/5,9;-6,-2/-1,4;6,-12
-l|-4,4|0,14;0,-12
-m|-12,12|-11,9;-11,-12/-11,2;-9,4;-7,5;-4,6;-2,6;0,5;1,2;1,-12/1,2;3,4;5,5;8,6;10,6;12,5;13,2;13,-12
-n|-8,8|-6,9;-6,-12/-6,2;-4,4;-2,5;1,6;3,6;5,5;6,2;6,-12
-o|-8,8|-1,9;-4,8;-6,6;-7,3;-7,1;-6,-2;-4,-4;-1,-5;1,-5;4,-4;6,-2;7,1;7,3;6,6;4,8;1,9;-1,9
-p|-8,8|-8,9;-8,-14/-8,2;-6,4;-4,5;-1,6;2,6;4,5;6,3;7,0;7,-2;6,-5;4,-7;2,-8;-1,-8;-4,-7;-6,-5;-8,-2
-q|-8,8|6,9;6,-14/6,2;4,4;2,5;-1,6;-4,6;-6,5;-7,3;-8,0;-8,-2;-7,-5;-6,-7;-4,-8;-1,-8;2,-7;4,-5;6,-2
-r|-7,7|-3,9;-3,-12/-3,1;-2,3;0,5;2,6;4,6
-s|-8,8|6,6;4,8;1,9;-2,9;-5,8;-6,6;-6,4;-5,2;-4,1;-2,0;2,-1;4,-2;5,-3;6,-5;6,-7;4,-9;1,-10;-2,-10;-5,-9;-6,-7
-t|-6,6|0,14;0,-11;1,-13;3,-14;5,-14/-4,5;3,5
-u|-8,8|-6,9;-6,-5;-5,-7;-3,-8;0,-8;2,-7;4,-5/6,9;6,-12
-v|-8,8|-8,9;0,-12/8,9;0,-12
-w|-11,11|-10,9;-6,-12/-2,9;-6,-12/-2,9;2,-12/10,9;2,-12
-x|-8,8|-6,9;6,-12/6,9;-6,-12
-y|-8,8|-8,9;0,-12/0,9;-2,-2;-5,-10;-9,-14
-z|-8,8|6,9;-6,-12/-6,9;6,9/-6,-12;6,-12
-!|-5,5|0,-12;0,2/0,7;-1,8;0,9;1,8;0,7
-"|-8,8|-4,-12;-4,-5/4,-12;4,-5
-$|-10,10|-2,-16;-2,13/2,-16;2,13/7,-9;5,-11;2,-12;-2,-12;-5,-11;-7,-9;-7,-7;-6,-5;-5,-4;-3,-3;3,-1;5,0;6,1;7,3;7,6;5,8;2,9;-2,9;-5,8;-7,6
-%|-16,16|-9,-11;-8,-12;-6,-12;-4,-11;-3,-9;-3,-7;-4,-5;-6,-4;-14,4;-16,5;-17,7;-17,9;-16,11;-14,12;-12,12;-10,11;-9,9/-4,-12;14,12/5,2;3,3;2,5;2,7;4,10;6,12;8,12;10,11;11,9;11,6;10,4;8,2;6,1;4,1;2,2
-&|-15,15|-3,-3;-5,-5;-7,-6;-9,-6;-11,-5;-13,-3;-14,-1;-14,1;-13,3;-12,4;-10,5;-4,7;-2,8;-1,9;0,11;0,13;-1,15;-3,16;-5,17;-7,17;-9,16;-11,15/-13,-12;-13,-10;-12,-8;-11,-7;-10,-6;-6,-4;-4,-3;-2,-2;0,0;2,3;3,5;3,7;2,9;0,11;-1,12;-3,13;-5,13;-7,12;-9,10;-10,8;-10,6;-9,4;-7,2;-5,0;-1,-2;1,-3;3,-4;5,-5;7,-6;9,-7;11,-9;12,-11;12,-13
-'|-5,5|0,-12;-1,-11;0,-10;1,-11;0,-12
-(|-7,7|4,-16;2,-14;0,-11;-2,-7;-3,-2;-3,2;-2,7;0,11;2,14;4,16
-)|-7,7|-4,-16;-2,-14;0,-11;2,-7;3,-2;3,2;2,7;0,11;-2,14;-4,16
-*|-10,10|0,-12;0,6/-5,-9;5,-3/-5,-3;5,-9
-+|-13,13|0,-12;0,9/-9,-1;9,-1
-,|-5,5|1,5;0,6;-1,5;0,4;1,5;1,7;0,9;-1,10
--|-13,13|-9,-1;9,-1
-.|-5,5|0,4;-1,5;0,6;1,5;0,4
-/|-11,11|-9,16;9,-16
-:|-5,5|0,-4;-1,-3;0,-2;1,-3;0,-4/0,4;-1,5;0,6;1,5;0,4
-;|-5,5|0,-4;-1,-3;0,-2;1,-3;0,-4/1,5;0,6;-1,5;0,4;1,5;1,7;0,9;-1,10
-<|-13,13|8,-11;-8,-1;8,9
-=|-13,13|-9,-4;9,-4/-9,2;9,2
->|-13,13|-8,-11;8,-1;-8,9
-?|-10,10|-6,-6;-6,-7;-5,-9;-4,-11;-2,-12;2,-12;4,-11;5,-9;6,-7;6,-5;5,-3;4,-2;0,0/0,5;-1,6;0,7;1,6;0,5
-@|-15,15|5,-4;4,-6;2,-8;0,-9;-2,-9;-4,-8;-6,-6;-7,-3;-7,-1;-6,2;-4,4;-2,5;0,5;2,4;4,2;5,-1/5,-4;5,2;6,4;8,5;10,5;12,4;13,2;14,-1;14,-3;13,-6;11,-9;9,-11;6,-13;3,-14;0,-14;-3,-13;-6,-11;-8,-9;-10,-6;-11,-3;-11,0;-10,3;-8,6;-6,8;-3,10;0,11;3,11;6,10;8,9
-[|-7,7|-3,-16;-3,16/-3,-16;5,-16/-3,16;5,16
-]|-7,7|-5,-16;3,-16;3,16/-5,16;3,16
-^|-8,8|-8,2;0,-8;8,2
-_|-9,9|-9,16;9,16
-`|-5,5|1,-11;-1,-9;0,-8;1,-9
-{|-8,8|2,-16;0,-14;-1,-12;-1,12;0,14;2,16/-1,-2;-3,0;-1,2/-6,0;-4,-1;-3,-2;-2,-4;-2,-6;-3,-8;-4,-9;-6,-10
-}|-8,8|-2,-16;0,-14;1,-12;1,12;0,14;-2,16/1,-2;3,0;1,2/6,0;4,-1;3,-2;2,-4;2,-6;3,-8;4,-9;6,-10
-~|-13,13|-9,3;-9,1;-8,-1;-7,-2;-5,-2;-3,-1;-1,1;1,3;3,4;5,4;7,3;8,2;9,0;9,-2
-·|-3,3|0,0;1,0
-—|-12,12|-10,0;10,0
-"""
+# Hershey futural coordinates, ASCII 32..126. Each first pair is the
+# left/right bearing; ' R' lifts the pen. Coordinates are relative to 'R'.
+SANS_COORDINATES = r"""JZ
+MWRFRT RRYQZR[SZRY
+JZNFNM RVFVM
+H]SBLb RYBRb RLOZO RKUYU
+H\PBP_ RTBT_ RYIWGTFPFMGKIKKLMMNOOUQWRXSYUYXWZT[P[MZKX
+F^[FI[ RNFPHPJOLMMKMIKIIJGLFNFPGSHVHYG[F RWTUUTWTYV[X[ZZ[X[VYTWT
+E_\O\N[MZMYNXPVUTXRZP[L[JZIYHWHUISJRQNRMSKSIRGPFNGMIMKNNPQUXWZY[[[\Z\Y
+MWRHQGRFSGSIRKQL
+KYVBTDRGPKOPOTPYR]T`Vb
+KYNBPDRGTKUPUTTYR]P`Nb
+JZRLRX RMOWU RWOMU
+E_RIR[ RIR[R
+NVSWRXQWRVSWSYQ[
+E_IR[R
+NVRVQWRXSWRV
+G][BIb
+H\QFNGLJKOKRLWNZQ[S[VZXWYRYOXJVGSFQF
+H\NJPISFS[
+H\LKLJMHNGPFTFVGWHXJXLWNUQK[Y[
+H\MFXFRNUNWOXPYSYUXXVZS[P[MZLYKW
+H\UFKTZT RUFU[
+H\WFMFLOMNPMSMVNXPYSYUXXVZS[P[MZLYKW
+H\XIWGTFRFOGMJLOLTMXOZR[S[VZXXYUYTXQVOSNRNOOMQLT
+H\YFO[ RKFYF
+H\PFMGLILKMMONSOVPXRYTYWXYWZT[P[MZLYKWKTLRNPQOUNWMXKXIWGTFPF
+H\XMWPURRSQSNRLPKMKLLINGQFRFUGWIXMXRWWUZR[P[MZLX
+NVROQPRQSPRO RRVQWRXSWRV
+NVROQPRQSPRO RSWRXQWRVSWSYQ[
+F^ZIJRZ[
+E_IO[O RIU[U
+F^JIZRJ[
+I[LKLJMHNGPFTFVGWHXJXLWNVORQRT RRYQZR[SZRY
+E`WNVLTKQKOLNMMPMSNUPVSVUUVS RQKOMNPNSOUPV RWKVSVUXVZV\T]Q]O\L[JYHWGTFQFNGLHJJILHOHRIUJWLYNZQ[T[WZYYZX RXKWSWUXV
+I[RFJ[ RRFZ[ RMTWT
+G\KFK[ RKFTFWGXHYJYLXNWOTP RKPTPWQXRYTYWXYWZT[K[
+H]ZKYIWGUFQFOGMILKKNKSLVMXOZQ[U[WZYXZV
+G\KFK[ RKFRFUGWIXKYNYSXVWXUZR[K[
+H[LFL[ RLFYF RLPTP RL[Y[
+HZLFL[ RLFYF RLPTP
+H]ZKYIWGUFQFOGMILKKNKSLVMXOZQ[U[WZYXZVZS RUSZS
+G]KFK[ RYFY[ RKPYP
+NVRFR[
+JZVFVVUYTZR[P[NZMYLVLT
+G\KFK[ RYFKT RPOY[
+HYLFL[ RL[X[
+F^JFJ[ RJFR[ RZFR[ RZFZ[
+G]KFK[ RKFY[ RYFY[
+G]PFNGLIKKJNJSKVLXNZP[T[VZXXYVZSZNYKXIVGTFPF
+G\KFK[ RKFTFWGXHYJYMXOWPTQKQ
+G]PFNGLIKKJNJSKVLXNZP[T[VZXXYVZSZNYKXIVGTFPF RSWY]
+G\KFK[ RKFTFWGXHYJYLXNWOTPKP RRPY[
+H\YIWGTFPFMGKIKKLMMNOOUQWRXSYUYXWZT[P[MZKX
+JZRFR[ RKFYF
+G]KFKULXNZQ[S[VZXXYUYF
+I[JFR[ RZFR[
+F^HFM[ RRFM[ RRFW[ R\FW[
+H\KFY[ RYFK[
+I[JFRPR[ RZFRP
+H\YFK[ RKFYF RK[Y[
+KYOBOb RPBPb ROBVB RObVb
+KYKFY^
+KYTBTb RUBUb RNBUB RNbUb
+JZRDJR RRDZR
+I[Ib[b
+NVSKQMQORPSORNQO
+I\XMX[ RXPVNTMQMONMPLSLUMXOZQ[T[VZXX
+H[LFL[ RLPNNPMSMUNWPXSXUWXUZS[P[NZLX
+I[XPVNTMQMONMPLSLUMXOZQ[T[VZXX
+I\XFX[ RXPVNTMQMONMPLSLUMXOZQ[T[VZXX
+I[LSXSXQWOVNTMQMONMPLSLUMXOZQ[T[VZXX
+MYWFUFSGRJR[ ROMVM
+I\XMX]W`VaTbQbOa RXPVNTMQMONMPLSLUMXOZQ[T[VZXX
+I\MFM[ RMQPNRMUMWNXQX[
+NVQFRGSFREQF RRMR[
+MWRFSGTFSERF RSMS^RaPbNb
+IZMFM[ RWMMW RQSX[
+NVRFR[
+CaGMG[ RGQJNLMOMQNRQR[ RRQUNWMZM\N]Q][
+I\MMM[ RMQPNRMUMWNXQX[
+I\QMONMPLSLUMXOZQ[T[VZXXYUYSXPVNTMQM
+H[LMLb RLPNNPMSMUNWPXSXUWXUZS[P[NZLX
+I\XMXb RXPVNTMQMONMPLSLUMXOZQ[T[VZXX
+KXOMO[ ROSPPRNTMWM
+J[XPWNTMQMNNMPNRPSUTWUXWXXWZT[Q[NZMX
+MYRFRWSZU[W[ ROMVM
+I\MMMWNZP[S[UZXW RXMX[
+JZLMR[ RXMR[
+G]JMN[ RRMN[ RRMV[ RZMV[
+J[MMX[ RXMM[
+JZLMR[ RXMR[P_NaLbKb
+J[XMM[ RMMXM RM[X[
+KYTBRCQDPFPHQJRKSMSOQQ RRCQEQGRISJTLTNSPORSTTVTXSZR[Q]Q_Ra RQSSUSWRYQZP\P^Q`RaTb
+NVRBRb
+KYPBRCSDTFTHSJRKQMQOSQ RRCSESGRIQJPLPNQPURQTPVPXQZR[S]S_Ra RSSQUQWRYSZT\T^S`RaPb
+F^IUISJPLONOPPTSVTXTZS[Q RISJQLPNPPQTTVUXUZT[Q[O"""
+
+# rowmans.jhf shares its letters with futural.jhf. These are every
+# differing ASCII glyph in that supplied file, including its punctuation.
+ROMAN_COORDINATES = {
+    '*': 'JZRFRR RMIWO RWIMO',
+    ',': 'MWSZR[QZRYSZS\\R^Q_',
+    '.': 'MWRYQZR[SZRY',
+    ':': 'MWRMQNROSNRM RRYQZR[SZRY',
+    ';': 'MWRMQNROSNRM RSZR[QZRYSZS\\R^Q_',
+    '^': 'JZPLRITL RMORJWO RRJR[',
+    '_': 'JZJ]Z]',
+    '`': 'MWSFRGQIQKRLSKRJ',
+}
 
 
-def load_font():
-    table = {}
-    for row in FONT_RAW.strip().split('\n'):
-        fields = row.split('|')
-        symbol = fields[0]
-        left, right = (int(v) for v in fields[1].split(','))
-        paths = []
-        for part in fields[2].split('/'):
-            points = []
-            for token in part.split(';'):
-                a, b = token.split(',')
-                points.append((int(a), int(b)))
-            paths.append(tuple(points))
-        table[symbol] = (left, right, tuple(paths))
-    return table
+def parse_glyph(encoded):
+    left, right = (ord(c)-82 for c in encoded[:2])
+    strokes = []
+    for stroke in encoded[2:].split(' R'):
+        assert len(stroke) % 2 == 0
+        if stroke:
+            strokes.append(tuple((ord(stroke[i])-82, ord(stroke[i+1])-82)
+                                 for i in range(0, len(stroke), 2)))
+    return left, right, tuple(strokes)
 
 
-SANS = load_font()
+SANS = {chr(i+32): parse_glyph(s) for i, s in enumerate(SANS_COORDINATES.splitlines())}
+assert len(SANS) == 95
+SANS['·'] = (-5, 5, (((-0.7, 0), (0.7, 0)),))
+SANS['—'] = (-12, 12, (((-10, 0), (10, 0)),))
+
+# Old hand-encoded marks kept only when the new data has no glyph for a symbol.
+FALLBACK_GLYPHS = {
+    '·': (-3, 3, (((0, 0), (1, 0)),)),
+    '—': (-12, 12, (((-10, 0), (10, 0)),)),
+}
+for symbol, glyph in FALLBACK_GLYPHS.items():
+    SANS.setdefault(symbol, glyph)
+
+ROMAN = dict(SANS)
+ROMAN.update({c: parse_glyph(s) for c, s in ROMAN_COORDINATES.items()})
 SERIF = dict(SANS)
+SERIF.update(ROMAN)
 # Terminals turn the capitals of the display face into a serif cut.
 TERMINALS = {
     'A': ((-8, 9), (8, 9), (0, -12)), 'B': ((-7, -12), (-7, 9), (-7, 2)),
@@ -297,7 +318,7 @@ TERMINALS = {
     '5': ((-5, 9), (5, 9)), '6': ((-5, 9), (6, 9)), '7': ((6, 9),),
 }
 for symbol, terminals in TERMINALS.items():
-    left, right, paths = SERIF[symbol]
+    left, right, paths = ROMAN[symbol]
     caps = tuple(((x - 3, y), (x + 3, y)) for x, y in terminals)
     SERIF[symbol] = (min(left, min(x - 3 for x, _ in terminals)),
                      max(right, max(x + 3 for x, _ in terminals)), paths + caps)
