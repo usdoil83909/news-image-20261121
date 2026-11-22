@@ -15,6 +15,7 @@ OUT = os.path.join(os.environ.get('MAKEFUN_OUTPUT_DIR', '/output'), 'entry.png')
 PAPER = (244, 239, 227)
 INK = (27, 27, 27)
 RED = (192, 57, 43)
+OXBLOOD = (112, 32, 40)
 BLUE = (31, 78, 156)
 AMBER = (217, 142, 43)
 DARK = (30, 36, 44)
@@ -399,17 +400,23 @@ def caps(sheet, x, y, text, size, col=INK, font=SANS, weight=1,
 
 
 DATE_TEXT = 'SATURDAY 21 NOVEMBER 2026'
-TOTAL_STORIES = 56
+DATE_LINE = 'Saturday 21 November 2026'
 
-REGIONS = [
-    ('RUSSIA & UKRAINE', 6, RED),
-    ('EUROPE', 12, BLUE),
-    ('MIDDLE EAST', 8, AMBER),
-    ('AFRICA', 8, (120, 88, 52)),
-    ('ASIA', 7, (52, 120, 96)),
-    ('AMERICAS', 6, (140, 60, 90)),
-    ('TECH & BUSINESS', 9, (70, 80, 110)),
+REGION_NAMES = [
+    ('RU', 'RUSSIA & UKRAINE', RED),
+    ('EU', 'EUROPE', BLUE),
+    ('ME', 'MIDDLE EAST', AMBER),
+    ('AF', 'AFRICA', (120, 88, 52)),
+    ('AS', 'ASIA', (52, 120, 96)),
+    ('AM', 'AMERICAS', (140, 60, 90)),
+    ('TB', 'TECH & BUSINESS', (70, 80, 110)),
 ]
+CODE_NAME = {code: name for code, name, _ in REGION_NAMES}
+REGION_TINT = {code: tint for code, _, tint in REGION_NAMES}
+SHORT_REGION = {
+    'RUSSIA & UKRAINE': 'RUSSIA-UKRAINE',
+    'TECH & BUSINESS': 'TECH/BUSINESS',
+}
 
 STATS = [
     ('58,818', 'BITCOIN CLOSE / USD, NOV 21'),
@@ -421,153 +428,280 @@ STATS = [
     ('4.0%', 'EURO INFLATION / OCTOBER'),
 ]
 
-TOP3 = [
-    'Kryvyi Rih hit by ballistic strike',
-    'UN killer-robot treaty talks collapse',
-    'Iran strikes three tankers near Hormuz',
-]
+STORY_FIELDS = ('code', 'city', 'lon', 'lat', 'short', 'detail',
+                'source', 'icon', 'impact')
 
-HEROES = [
-    ('KRYVYI RIH: MISSILE STRIKE',
-     "Russian ballistic strike killed two and wounded about 60 in Zelenskyy's hometown.",
-     'AP / RBC-UKRAINE', 'missile'),
-    ('GENEVA: KILLER ROBOTS',
-     'UN talks on banning autonomous weapons collapsed after a consensus mandate was blocked.',
-     'REUTERS / GUARDIAN', 'robot'),
-    ('HORMUZ: TANKERS HIT',
-     'Iran struck three tankers near the strait and unveiled an underground launcher.',
-     'AP / AL JAZEERA', 'tanker'),
-]
-
-CARDS = [
-    (1, 'EUROPE', 'CLIMATE', 'COP31 climate talks end in deadlock',
-     'Nearly 200 states stalled on fossil fuels in Antalya as the EU warned of no deal.',
-     'BBC/REUTERS', 'flame'),
-    (2, 'EUROPE', 'AIRSPACE', 'Finland suspects Russian helicopter in airspace',
-     'The ministry linked the suspected incursion to a drone strike on a sanctioned ship.',
-     'NYT', 'radar'),
-    (3, 'EUROPE', 'PROTEST', 'Gen Z youth strike sweeps 25 countries',
-     'Students across Europe marched on living costs, education funding and conscription.',
-     'AFP/REUTERS', 'crowd'),
-    (4, 'MIDDLE EAST', 'GAZA', 'Gaza food truck strike kills three',
-     'Health authorities put the toll at 74,736 as 350,000 families remain homeless.',
-     'AP', 'aid'),
-    (5, 'AFRICA', 'BORDER', 'Ethiopia, Eritrea trade fire near Badme',
-     'The Horn of Africa frontier flared again amid fears of a wider Red Sea war.',
-     'RIO TIMES', 'border'),
-    (6, 'ASIA', 'MARKETS', 'Asian markets crash on AI sell-off',
-     'Nikkei fell 5.06%, Kospi 5.21% and Taiex 6.23% in the Friday session.',
-     'AKTZIEN/AP', 'chart'),
-    (7, 'AMERICAS', 'ARREST', 'Mexico captures FBI most-wanted cartel boss',
-     '"El Chapo Isidro" was arrested with US intelligence; 11 dead in Sinaloa violence.',
-     'AP', 'badge'),
-    (8, 'TECH', 'CRYPTO', 'Bitcoin slides to a one-year low near $58,000',
-     'BTC broke below $59,000 as ETF outflows continued and gold hovered near $3,522.',
-     'COINGECKO', 'coin'),
-    (9, 'TECH', 'AI', 'Claude helped solve a Holy Grail math problem',
-     'An Anthropic mathematician drew attention as AI shares slid and CoreWeave drew scrutiny.',
-     'NPR', 'chip'),
-    (10, 'AMERICAS', 'POLITICS', 'Vance declines to back Iran nuclear claim',
-     'The VP stopped short of endorsing the war rationale at a White House briefing.',
-     'NYT', 'capitol'),
-]
-
-ALSO = [
-    (11, 'KRYVYI RIH', 'Russia launches 148 drones; Ukraine downs 117', 'RBC-UKRAINE', 33.4, 47.9),
-    (12, 'KYIV', 'Ukraine and UK sign deep-strike drone deal', 'RBC-UKRAINE', 30.5, 50.5),
-    (13, 'POLAND', '2,800 coalition troops train near border', 'AFP', 21.0, 52.0),
-    (14, 'MOSCOW', 'Russia embraces US security talks offer', 'AP', 37.6, 55.8),
-    (15, 'GULF OF FINLAND', 'Cargo ship damaged by drone strike', 'POLITICO', 27.0, 60.0),
-    (16, 'PARIS', 'Protests enter a sixth weekend', 'LE MONDE', 2.35, 48.9),
-    (17, 'COPENHAGEN', 'Denmark accuses Russia of murder plot', 'BBC', 12.6, 55.7),
-    (18, 'BRUSSELS', 'Chair proposes 44bn euro budget cut', 'REUTERS', 4.35, 50.8),
-    (19, 'MADRID', 'Banking levy extended to fund housing', 'REUTERS', -3.7, 40.4),
-    (20, 'EURO AREA', 'Inflation climbs to 4.0 percent', 'EURONEWS', 10.0, 50.0),
-    (21, 'TEHRAN', 'Iran claims it hit a US F-16 over the Gulf', 'AL JAZEERA', 51.4, 35.7),
-    (22, 'HODEIDAH', 'Coalition strikes as Houthis fire at Riyadh', 'REUTERS', 42.9, 14.8),
-    (23, 'TAIZ', 'Senior Houthi commander killed in attack', 'AL JAZEERA', 44.0, 13.6),
-    (24, 'BASRA', 'Power station fire kills at least four', 'REUTERS', 47.8, 30.5),
-    (25, 'DR CONGO', '38 killed in church attack in the east', 'DAILY NEWS EGYPT', 23.7, -1.7),
-    (26, 'BAYELSA', 'Rescuers search after funeral barge capsizes', 'DAILY POST', 6.3, 4.8),
-    (27, 'BENIN', 'Asks Paris museum to return 35 artifacts', 'AFRICANEWS', 2.4, 9.5),
-    (28, 'TOKYO', 'Japan wary of regular trilateral with US, China', 'JIJI PRESS', 139.7, 35.7),
-    (29, 'SEOUL', 'Ruling party moves to impeach chief justice', 'RIO TIMES', 127.0, 37.6),
-    (30, 'WALL STREET', 'S&P 500 and Dow enter correction', 'BBC', -74.0, 40.7),
-    (31, 'WASHINGTON', 'FBI probes crime database breach', 'AP', -77.0, 38.9),
-    (32, 'MACAU', 'Hickman breaks 16-year lap record', 'BBC SPORT', 113.5, 22.2),
-]
-
-LEFT_OUT = [
-    "Friday 20 November's Wall Street closing levels",
-    "the 19 November miner detentions in Guinea",
-    "Thursday's funeral barge disaster in Bayelsa",
-]
-
-REGION_TINT = {
-    'EUROPE': BLUE, 'MIDDLE EAST': AMBER, 'AFRICA': (120, 88, 52),
-    'ASIA': (52, 120, 96), 'AMERICAS': (140, 60, 90),
-    'TECH': (70, 80, 110), 'RUSSIA & UKRAINE': RED,
+STORY_TABLE = {
+    1: ('RU', 'KRYVYI RIH', 33.4, 47.9,
+        "Ballistic strike hits Zelenskyy's hometown",
+        'Two killed and about 60 wounded in the central city.',
+        'AP/REUTERS', 'missile', ''),
+    2: ('RU', 'KYIV', 30.5, 50.5, '148 drones fired at Ukraine overnight',
+        'The air force said 117 of the drones were shot down.',
+        'RBC-UKRAINE', 'radar', '148'),
+    3: ('RU', 'KYIV', 30.5, 50.5, 'Ukraine and UK sign deep-strike drone deal',
+        'Kyiv and London agreed drone cooperation on Saturday.',
+        'RBC-UKRAINE', 'radar', ''),
+    4: ('RU', 'POLAND', 21.0, 52.0, '2,800 coalition troops train near border',
+        'Ten countries drilled at Nowa Deba as missile strikes hit nearby.',
+        'AFP', 'badge', '2,800'),
+    5: ('RU', 'MOSCOW', 37.6, 55.8, 'Russia embraces US security talks offer',
+        'Moscow used the opening to revive demands on NATO.',
+        'AP', 'capitol', ''),
+    6: ('RU', 'GULF OF FINLAND', 27.0, 60.0, 'Cargo ship damaged by drone strike',
+        'Helsinki and Moscow both reported the hit on a sanctioned ship.',
+        'POLITICO', 'radar', ''),
+    7: ('EU', 'HELSINKI', 24.9, 60.2, 'Finland suspects Russian helicopter',
+        'The ministry linked the incursion to a cargo-ship drone strike.',
+        'NYT', 'radar', ''),
+    8: ('EU', 'PARIS', 2.35, 48.9, 'Gen Z strike sweeps 25 countries',
+        'Students marched on living costs, education and conscription.',
+        'AFP/REUTERS', 'crowd', '25'),
+    9: ('EU', 'PARIS', 2.35, 48.9, 'French protests enter sixth weekend',
+        'The September movement marched again against prices and services.',
+        'LE MONDE', 'crowd', ''),
+    10: ('EU', 'GENEVA', 6.1, 46.2, 'UN killer-robot treaty talks collapse',
+         'A consensus mandate was blocked and delegates adopted a weak pledge.',
+         'REUTERS/GUARDIAN', 'robot', ''),
+    11: ('EU', 'ANTALYA', 30.5, 36.9, 'COP31 climate talks end in deadlock',
+         'Nearly 200 states stalled on fossil fuels at the resort.',
+         'BBC/REUTERS', 'flame', '200'),
+    12: ('EU', 'COPENHAGEN', 12.6, 55.7, 'Denmark accuses Russia of murder plot',
+         'Officials alleged a plot against a US-Ukrainian rapper.',
+         'BBC', 'badge', ''),
+    13: ('EU', 'BRUSSELS', 4.35, 50.8, 'EU and UK move closer after reset',
+         'Lengthy negotiations produced a closer post-Brexit arrangement.',
+         'REUTERS', 'capitol', ''),
+    14: ('EU', 'BRUSSELS', 4.35, 50.8, 'Chair proposes 44bn euro budget cut',
+         'The EU leader suggested trimming the 2028-2034 budget.',
+         'REUTERS', 'chart', '44BN'),
+    15: ('EU', 'MADRID', -3.7, 40.4, 'Banking levy extended to fund housing',
+         'Spain kept the levy in place through 2027 for housing policy.',
+         'REUTERS', 'capitol', ''),
+    16: ('EU', 'STOCKHOLM', 18.1, 59.3, 'Russian-linked firm collected data on Swedes',
+         'A probe found secret collection of data on millions of people.',
+         'GUARDIAN', 'chip', ''),
+    17: ('EU', 'LONDON', -0.1, 51.5, 'UK patches fridge hack vulnerability',
+         'Officials fixed a flaw after a wave of European hacks.',
+         'BBC', 'chip', ''),
+    18: ('EU', 'FRANKFURT', 8.7, 50.1, 'Euro inflation climbs to 4.0 percent',
+         'Price growth in the euro area accelerated in October.',
+         'EURONEWS', 'chart', '4.0%'),
+    19: ('ME', 'HORMUZ', 56.5, 26.6, 'Iran strikes three tankers near Hormuz',
+         'Tehran also unveiled a new underground missile launcher.',
+         'AP/AL JAZEERA', 'tanker', '3'),
+    20: ('ME', 'TEHRAN', 51.4, 35.7, 'Iran claims it hit a US F-16',
+         'The claim said the jet was forced to land over the Gulf.',
+         'AL JAZEERA', 'missile', ''),
+    21: ('ME', 'GAZA', 34.5, 31.5, 'Gaza food truck strike kills three',
+         'Health authorities reported the strike on an aid vehicle.',
+         'AP', 'aid', '3'),
+    22: ('ME', 'GAZA', 34.5, 31.5, 'Gaza death toll reaches 74,736',
+         'The health authority tally was published on Saturday.',
+         'AP', 'aid', '74,736'),
+    23: ('ME', 'HODEIDAH', 42.9, 14.8, 'Coalition strikes Hodeidah; Houthis fire',
+         'Riyadh came under fire as the coalition hit the port city.',
+         'REUTERS', 'missile', ''),
+    24: ('ME', 'TAIZ', 44.0, 13.6, 'Senior Houthi commander killed',
+         'Government forces announced the killing in Taiz.',
+         'AL JAZEERA', 'badge', ''),
+    25: ('ME', 'TEHRAN', 51.4, 35.7, 'Iran keeps door open to diplomacy',
+         'The foreign minister signalled willingness to end the war.',
+         'REUTERS', 'capitol', ''),
+    26: ('ME', 'BASRA', 47.8, 30.5, 'Power station fire kills at least four',
+         'The blaze hit a power station in southern Iraq.',
+         'REUTERS', 'flame', '4'),
+    27: ('AF', 'BADME', 39.5, 13.2, 'Ethiopia, Eritrea trade fire near Badme',
+         'The Horn of Africa frontier flared amid fears of a wider war.',
+         'RIO TIMES', 'border', ''),
+    28: ('AF', 'KHARTOUM', 32.5, 15.5, 'UN says 2,230 Sudan civilians killed',
+         'The UN report attributed most of the deaths to drones.',
+         'UN', 'crowd', '2,230'),
+    29: ('AF', 'GOMA', 29.2, -1.7, '38 killed in eastern Congo church attack',
+         'An ISIS-linked attack struck a church in the east of the country.',
+         'DAILY NEWS EGYPT', 'aid', '38'),
+    30: ('AF', 'BAYELSA', 6.3, 4.8, 'Funeral barge capsizes; rescue search',
+         'Rescuers searched the waterway after the barge went down.',
+         'DAILY POST', 'aid', ''),
+    31: ('AF', 'PRETORIA', 28.2, -25.7, 'South Africa summons Nigerian envoy',
+         'A broadcast dispute prompted the diplomatic summons.',
+         'REUTERS', 'capitol', ''),
+    32: ('AF', 'KAMPALA', 32.6, 0.3, 'Besigye faces November 25 hearing',
+         'The opposition figure remained on bail conditions.',
+         'RIO TIMES', 'capitol', ''),
+    33: ('AF', 'CONAKRY', -13.7, 9.5, 'Guinea jails 202 miners',
+         'A court jailed the miners and banned a broadcaster.',
+         'REUTERS', 'badge', '202'),
+    34: ('AF', 'COTONOU', 2.4, 9.5, 'Benin asks Paris for 35 artifacts',
+         'The government requested the return of looted objects.',
+         'AFRICANEWS', 'capitol', '35'),
+    35: ('AS', 'TOKYO', 139.7, 35.7, 'Asian markets crash on AI sell-off',
+         'Nikkei, Kospi and Taiex fell sharply in the Friday session.',
+         'AKTZIEN/AP', 'chart', '-5%'),
+    36: ('AS', 'TOKYO', 139.7, 35.7, 'Japan wary of regular trilateral',
+         'Officials were cautious about a regular US-China-Russia format.',
+         'JIJI PRESS', 'capitol', ''),
+    37: ('AS', 'SEOUL', 127.0, 37.6, 'Ruling party moves to impeach justice',
+         'The chief justice faced an impeachment push in Seoul.',
+         'RIO TIMES', 'capitol', ''),
+    38: ('AS', 'TOKYO', 139.7, 35.7, 'Japan weighs education minister exit',
+         'The ruling party considered replacing him over a funds scandal.',
+         'JIJI PRESS', 'capitol', ''),
+    39: ('AS', 'KUALA LUMPUR', 101.7, 3.1, 'MSF warns on refugee registrations',
+         'Suspension of UNHCR registration was said to endanger refugees.',
+         'REUTERS', 'aid', ''),
+    40: ('AS', 'SANTA CLARA', -121.9, 37.3, 'Trump urges Nvidia to take Huang back',
+         'The president commented on the chipmaker leadership.',
+         'REUTERS', 'chip', ''),
+    41: ('AS', 'ISLAMABAD', 73.1, 33.7, 'UN spotlight on dissent in PoK',
+         'A report highlighted repression of dissent in the region.',
+         'REUTERS', 'crowd', ''),
+    42: ('AM', 'MEXICO CITY', -99.1, 19.4, 'Mexico captures FBI most-wanted boss',
+         'Eleven died in Sinaloa violence around the arrest.',
+         'AP', 'badge', '11'),
+    43: ('AM', 'TAPACHULA', -92.3, 14.9, 'Migrant caravan crosses into Mexico',
+         'About 250 people entered the country at Tapachula.',
+         'AP', 'crowd', '250'),
+    44: ('AM', 'WASHINGTON', -77.0, 38.9, 'Pentagon restricts Canada defence ties',
+         'A classified memo set new limits on cooperation.',
+         'NYT', 'capitol', ''),
+    45: ('AM', 'SAO PAULO', -46.6, -23.5, 'Bolsonaro in intensive care',
+         'The former president was hospitalised with an obstruction.',
+         'REUTERS', 'aid', ''),
+    46: ('AM', 'WASHINGTON', -77.0, 38.9, 'Vance declines to back Iran nuclear claim',
+         'The VP stopped short of endorsing the war rationale.',
+         'NYT', 'capitol', ''),
+    47: ('AM', 'WASHINGTON', -77.0, 38.9, 'Trump orders contractor inquiry clearance',
+         'Federal contractors must clear inquiries with the White House.',
+         'NYT', 'capitol', ''),
+    48: ('TB', 'WALL STREET', -74.0, 40.7, 'S&P 500 and Dow enter correction',
+         'The tech rout dragged the benchmarks into correction territory.',
+         'BBC', 'chart', '-4%'),
+    49: ('TB', 'WALL STREET', -74.0, 40.7, 'Bitcoin slides to one-year low',
+         'ETF outflows continued as the coin broke below $59,000.',
+         'COINGECKO', 'coin', '$58K'),
+    50: ('TB', 'NEW YORK', -74.0, 40.7, 'Gold hovers near 14-month low',
+         'Bullion stayed weak as hike fears persisted.',
+         'REUTERS', 'coin', '$3,522'),
+    51: ('TB', 'NEW YORK', -74.0, 40.7, 'CoreWeave symbol of AI buildout risk',
+         'The debt-laden firm drew scrutiny as AI shares slid.',
+         'NPR', 'chip', ''),
+    52: ('TB', 'WASHINGTON', -77.0, 38.9, 'FBI probes crime database breach',
+         'Agents investigated a hack of the national crime database.',
+         'AP', 'chip', ''),
+    53: ('TB', 'WASHINGTON', -77.0, 38.9, 'Judge approves Bayer Roundup settlement',
+         'A court cleared the $7.25 billion settlement.',
+         'REUTERS', 'capitol', '$7.25B'),
+    54: ('TB', 'WASHINGTON', -77.0, 38.9, 'Trump seeks 10% credit card rate cap',
+         'The proposal drew support from some Democrats.',
+         'REUTERS', 'capitol', '10%'),
+    55: ('TB', 'SAN FRANCISCO', -122.4, 37.8, 'Claude helped solve a math problem',
+         'An Anthropic mathematician claimed a Holy Grail result.',
+         'NPR', 'chip', ''),
+    56: ('TB', 'MACAU', 113.5, 22.2, 'Hickman breaks 16-year lap record',
+         'He won the Macau motorcycle Grand Prix on Saturday.',
+         'BBC SPORT', 'badge', '16Y'),
 }
+STORIES = {ident: dict(zip(STORY_FIELDS, row))
+           for ident, row in STORY_TABLE.items()}
 
-STORY_COUNT = len(HEROES) + len(CARDS) + len(ALSO)
+HERO_IDS = (1, 10, 19)
+CARD_IDS = (2, 7, 8, 11, 21, 22, 27, 29, 35, 42, 48, 49, 55, 56)
+ALSO_IDS = (3, 4, 5, 6, 9, 12, 13, 14, 15, 16, 18, 20, 23, 24,
+            25, 26, 28, 30, 31, 32, 34, 36, 37, 38, 39, 41, 44, 46, 50, 54)
+LEFT_OUT_IDS = (33, 43, 45)
+MAP_PIN_IDS = (2, 4, 6, 7, 9, 11, 12, 23, 26, 28, 30, 32, 34, 36, 42, 48)
+HERO_TAGS = {1: 'KRYVYI RIH: MISSILE STRIKE',
+             10: 'GENEVA: KILLER ROBOTS',
+             19: 'HORMUZ: TANKERS HIT'}
+
+
+def stamped(ident, number=None):
+    record = dict(STORIES[ident])
+    record['id'] = ident
+    record['num'] = number
+    record['pin'] = '%02d' % number if number is not None else ''
+    return record
+
+
+HEROES = [stamped(ident) for ident in HERO_IDS]
+CARDS = [stamped(ident, number) for number, ident in enumerate(CARD_IDS, 1)]
+ALSO = [stamped(ident, number)
+        for number, ident in enumerate(ALSO_IDS, len(CARD_IDS) + 1)]
+MAP_PINS = [item for item in CARDS + ALSO if item['id'] in MAP_PIN_IDS]
+TOP3 = [record['short'] for record in HEROES]
+LEFT_OUT = [
+    'the %s jailed miners in Guinea' % STORIES[33]['impact'],
+    "Bolsonaro's intensive-care stay",
+    'the %s-person migrant caravan at Tapachula' % STORIES[43]['impact'],
+]
+
+PRESENTED = HEROES + CARDS + ALSO
+STORY_COUNT = len(PRESENTED)
+TOTAL_STORIES = len(STORIES)
+PIN_COUNT = len(MAP_PINS)
+REGION_COUNTS = {code: sum(1 for item in PRESENTED if item['code'] == code)
+                 for code, _, _ in REGION_NAMES}
+REGIONS = [(CODE_NAME[code], REGION_COUNTS[code], REGION_TINT[code])
+           for code, _, _ in REGION_NAMES]
+PICKED_IDS = HERO_IDS + CARD_IDS + ALSO_IDS + LEFT_OUT_IDS
+assert len(set(PICKED_IDS)) == len(PICKED_IDS)
 
 
 def draw_header(sheet):
     kicker = 'THE WORLD IN ONE DAY'
-    kw = text_width(kicker, 10, SANS, 1.6, 0.9)
-    caps(sheet, 996 - kw, 18, kicker, 10, RED, weight=2,
-         tracking=1.6, squeeze=0.9)
-    tail = ('%d STORIES - %d REGIONS - EVERY ONE DATED %s'
-            % (TOTAL_STORIES, len(REGIONS), DATE_TEXT))
-    caps(sheet, 28, 20, tail, 8.5, GREY, weight=1,
-         tracking=0.7, squeeze=0.88)
+    kw = text_width(kicker, 9.5, SANS, 1.4, 0.9)
+    caps(sheet, 996 - kw, 10, kicker, 9.5, RED, weight=2,
+         tracking=1.4, squeeze=0.9)
+    caps(sheet, 28, 11, DATE_TEXT, 8.5, GREY, weight=1,
+         tracking=0.8, squeeze=0.88)
 
-    title = 'Saturday 21 November 2026'
-    put_centered(sheet, 512, 36, title, 54, INK, SERIF, weight=4,
+    put_centered(sheet, 512, 26, DATE_LINE, 52, INK, SERIF, weight=4,
                  tracking=0.4, squeeze=0.92)
-    h_rule(sheet, 28, 94, 968, INK, 2)
-    h_rule(sheet, 28, 98, 968, RULE, 0.7)
+    meta = ('%d STORIES - %d REGIONS - EVERY ONE DATED %s'
+            % (STORY_COUNT, len(REGIONS), DATE_TEXT))
+    meta_size = fit_size(meta, 940, 9.5, 7.0, SANS, 0.6, 0.86)
+    caps(sheet, 28, 94, meta, meta_size, RED, weight=2,
+         tracking=0.6, squeeze=0.86)
 
     lead = '  ·  '.join(TOP3)
-    lead_size = fit_size(lead, 900, 13.0, 9.0, SERIF, 0.2, 0.95)
-    put_centered(sheet, 512, 104, lead, lead_size, GREY, SERIF,
+    lead_size = fit_size(lead, 920, 13.8, 9.5, SERIF, 0.2, 0.95)
+    put_centered(sheet, 512, 108, lead, lead_size, GREY, SERIF,
                  weight=1, tracking=0.2, squeeze=0.95, slant=0.13)
-    h_rule(sheet, 28, 121, 968, INK, 1)
+    h_rule(sheet, 28, 128, 968, INK, 2)
+    h_rule(sheet, 28, 132, 968, RULE, 0.7)
 
 
 def draw_stats(sheet):
-    top, height, gap = 129, 56, 8
+    top, height, gap = 137, 45, 7
     cell = (968 - gap * (len(STATS) - 1)) / len(STATS)
     for index, (figure, caption) in enumerate(STATS):
         x = 28 + index * (cell + gap)
-        v_rule(sheet, x, top + 3, height - 6, RED, 2)
-        size = fit_size(figure, cell - 14, 24.0, 14.0, SANS, 0.2, 0.9)
-        put_text(sheet, x + 8, top + 3, figure, size, INK, SANS,
+        v_rule(sheet, x, top + 2, height - 4, RED, 2)
+        size = fit_size(figure, cell - 12, 19.0, 12.0, SANS, 0.2, 0.9)
+        put_text(sheet, x + 7, top + 2, figure, size, INK, SANS,
                  weight=3, tracking=0.2, squeeze=0.9)
         pieces = [part.strip() for part in caption.split('/')]
         for row, part in enumerate(pieces[:2]):
-            caps(sheet, x + 8, top + 30 + row * 11.5, part, 9.5,
-                 GREY, weight=1, tracking=0.35, squeeze=0.86)
-    h_rule(sheet, 28, 187, 968, RULE, 0.7)
-
-
-SHORT_REGION = {
-    'RUSSIA & UKRAINE': 'RUSSIA-UKRAINE',
-    'TECH & BUSINESS': 'TECH/BUSINESS',
-}
+            piece_size = fit_size(part, cell - 12, 8.4, 6.4,
+                                  SANS, 0.3, 0.84)
+            caps(sheet, x + 7, top + 27 + row * 9, part, piece_size,
+                 GREY, weight=1, tracking=0.3, squeeze=0.84)
+    h_rule(sheet, 28, 186, 968, RULE, 0.7)
 
 
 def draw_regions(sheet):
-    top, height = 191, 26
+    top, height = 190, 21
     total = sum(count for _, count, _ in REGIONS)
     cursor = 28.0
     for name, count, tint in REGIONS:
         width = 968.0 * count / total
         sheet.rect(cursor * SS, top * SS, width * SS, height * SS, tint)
-        label = '%s %d' % (SHORT_REGION.get(name, name), count)
-        size = fit_size(label, width - 10, 9.5, 7.5, SANS, 0.25, 0.78)
-        put_centered(sheet, cursor + width / 2, top + 7, label, size,
-                     WHITE, SANS, weight=2, tracking=0.25, squeeze=0.78)
+        code = next(code for code, full, _ in REGION_NAMES if full == name)
+        label = '%s %d' % (code, count)
+        size = fit_size(label, width - 8, 8.6, 6.6, SANS, 0.2, 0.8)
+        put_centered(sheet, cursor + width / 2, top + 5, label, size,
+                     WHITE, SANS, weight=2, tracking=0.2, squeeze=0.8)
         sheet.rect(int((cursor + width - 1) * SS), top * SS, SS, height * SS, PAPER)
         cursor += width
     h_rule(sheet, 28, top, 968, RULE, 0.7)
@@ -642,13 +776,15 @@ HERO_ART = {'missile': art_missile, 'robot': art_robot, 'tanker': art_tanker}
 def draw_heroes(sheet):
     top, height, gap = 223, 166, 12
     width = (968 - gap * 2) / 3
-    for index, (tag, fact, source, art) in enumerate(HEROES):
+    for index, item in enumerate(HEROES):
         x = 28 + index * (width + gap)
+        tag = HERO_TAGS[item['id']]
+        fact = item['short'] + '. ' + item['detail']
         frame(sheet, x, top, width, height, DARK)
-        h_rule(sheet, x, top, width, RED, 2)
+        h_rule(sheet, x, top, width, OXBLOOD, 3)
         tag_size = fit_size(tag, width - 24, 9.5, 7.5, SANS, 0.5, 0.84)
         tag_width = text_width(tag, tag_size, SANS, 0.5, 0.84) + 14
-        sheet.rect((x + 9) * SS, (top + 9) * SS, tag_width * SS, 18 * SS, RED)
+        sheet.rect((x + 9) * SS, (top + 9) * SS, tag_width * SS, 18 * SS, OXBLOOD)
         caps(sheet, x + 16, top + 13, tag, tag_size, WHITE,
              weight=2, tracking=0.5, squeeze=0.84)
         fact_size = 11.0
@@ -658,8 +794,8 @@ def draw_heroes(sheet):
         art_y = top + 34 + used + 5
         art_h = top + height - 24 - art_y
         if art_h > 24:
-            HERO_ART[art](sheet, x + 10, art_y, width - 20, art_h)
-        caps(sheet, x + 10, top + height - 15, source, 8, MUTED,
+            HERO_ART[item['icon']](sheet, x + 10, art_y, width - 20, art_h)
+        caps(sheet, x + 10, top + height - 15, item['source'], 8, MUTED,
              weight=1, tracking=0.4, squeeze=0.86)
 
 
@@ -716,31 +852,41 @@ def card_icon(sheet, x, y, kind, tint):
 
 
 def draw_cards(sheet):
-    top, height, gap_x, gap_y = 397, 94, 10, 10
-    width = (968 - gap_x * 4) / 5
-    for index, (number, region, topic, headline, body, source, icon) in enumerate(CARDS):
-        row, column = divmod(index, 5)
+    top, height, gap_x, gap_y = 397, 98, 10, 10
+    columns = 7
+    width = (968 - gap_x * (columns - 1)) / columns
+    for index, item in enumerate(CARDS):
+        column, row = divmod(index, columns)
         x = 28 + column * (width + gap_x)
         y = top + row * (height + gap_y)
         frame(sheet, x, y, width, height, PALE, RULE, 0.7)
-        tint = REGION_TINT.get(region, BLUE)
-        h_rule(sheet, x, y, width, tint, 4)
-        card_icon(sheet, x + width - 21, y + 9, icon, tint)
-        put_text(sheet, x + 7, y + 8, str(number), 11, RED, SANS, weight=3)
-        label = region + ' - ' + topic
-        label_size = fit_size(label, width - 42, 8.0, 6.5, SANS, 0.2, 0.8)
-        caps(sheet, x + 24, y + 10, label, label_size, GREY,
-             weight=1, tracking=0.2, squeeze=0.8)
-        head_lines = clipped(headline, 9.8, width - 14, 2, SANS, 0.05, 0.93)
+        sheet.rect(x * SS, y * SS, width * SS, 19 * SS, OXBLOOD)
+        tint = REGION_TINT[item['code']]
+        put_text(sheet, x + 6, y + 4, item['pin'], 9.5, WHITE, SANS, weight=3)
+        city = item['city']
+        city_size = fit_size(city, width - 55, 7.6, 6.2, SANS, 0.15, 0.8)
+        city_w = text_width(city, city_size, SANS, 0.15, 0.8) + 8
+        sheet.rect((x + 24) * SS, (y + 3) * SS, city_w * SS, 13 * SS,
+                   (234, 223, 214))
+        caps(sheet, x + 28, y + 5, city, city_size, OXBLOOD,
+             weight=2, tracking=0.15, squeeze=0.8)
+        card_icon(sheet, x + width - 18, y + 3, item['icon'], tint)
+        head_lines = clipped(item['short'], 8.8, width - 12, 3,
+                             SANS, 0.05, 0.93)
         for line_no, line in enumerate(head_lines):
-            put_text(sheet, x + 7, y + 25 + line_no * 11.5, line, 9.8,
+            put_text(sheet, x + 6, y + 24 + line_no * 10.5, line, 8.8,
                      INK, SANS, weight=2, tracking=0.05, squeeze=0.93)
-        body_lines = clipped(body, 8.0, width - 14, 3, SANS, 0, 0.95)
+        body_lines = clipped(item['detail'], 7.4, width - 12, 2,
+                             SANS, 0, 0.95)
         for line_no, line in enumerate(body_lines):
-            put_text(sheet, x + 7, y + 50 + line_no * 9, line, 8.0,
-                     (60, 56, 50), SANS, weight=1, squeeze=0.95)
-        caps(sheet, x + 7, y + height - 12, source, 7.5, (116, 110, 100),
-             weight=1, tracking=0.3, squeeze=0.86)
+            put_text(sheet, x + 6, y + 60 + line_no * 8.5, line, 7.4,
+                     (74, 68, 60), SANS, weight=1, squeeze=0.95)
+        caps(sheet, x + 6, y + height - 11, item['source'], 6.8,
+             (116, 110, 100), weight=1, tracking=0.25, squeeze=0.86)
+        if item['impact']:
+            width_impact = text_width(item['impact'], 7, SANS, 0, 0.84)
+            caps(sheet, x + width - 6 - width_impact, y + height - 11,
+                 item['impact'], 7, OXBLOOD, weight=2, squeeze=0.84)
 
 
 LAND_SHAPES = [
@@ -760,10 +906,11 @@ LAND_SHAPES = [
 
 def draw_map(sheet, x, y, width, height):
     frame(sheet, x, y, width, height, PAPER, RULE, 0.7)
-    caps(sheet, x + 8, y + 6, 'WHERE THE DAY HAPPENED', 9.5, BLUE,
-         weight=2, tracking=0.7, squeeze=0.86)
-    mx, my = x + 10, y + 25
-    mw, mh = width - 20, height - 36
+    heading = 'WHERE THE DAY HAPPENED  -  %d PINS' % PIN_COUNT
+    caps(sheet, x + 8, y + 6, heading, 9, BLUE,
+         weight=2, tracking=0.5, squeeze=0.86)
+    mx, my = x + 10, y + 24
+    mw, mh = width - 20, height - 34
 
     def project(lon, lat):
         return (mx + (lon + 180.0) / 360.0 * mw,
@@ -777,12 +924,21 @@ def draw_map(sheet, x, y, width, height):
         scaled = [(px * SS, py * SS) for px, py in pts]
         sheet.area(scaled, (166, 181, 201))
         sheet.outline(scaled + [scaled[0]], BLUE, SS, closed=False)
-    for number, city, text, source, lon, lat in ALSO:
-        px, py = project(lon, lat)
-        sheet.disc(px * SS, py * SS, 8 * SS, RED)
-        sheet.disc(px * SS, py * SS, 8 * SS, WHITE, ring=True, weight=SS)
-        label = str(number)
-        put_centered(sheet, px, py - 4, label, 7.5, WHITE, SANS, weight=2)
+    placed = []
+    for item in MAP_PINS:
+        px, py = project(item['lon'], item['lat'])
+        for attempt in range(32):
+            offset = 0 if attempt == 0 else 5 + 3 * (attempt - 1)
+            angle = attempt * 2.399963
+            cx = max(mx + 11, min(mx + mw - 11, px + math.cos(angle) * offset))
+            cy = max(my + 11, min(my + mh - 11, py + math.sin(angle) * offset))
+            if all((cx - ox) ** 2 + (cy - oy) ** 2 >= 19 ** 2
+                   for ox, oy in placed):
+                break
+        placed.append((cx, cy))
+        sheet.disc(cx * SS, cy * SS, 10 * SS, RED)
+        sheet.disc(cx * SS, cy * SS, 10 * SS, WHITE, ring=True, weight=2 * SS)
+        put_centered(sheet, cx, cy - 4, item['pin'], 7.5, WHITE, SANS, weight=2)
 
 
 def draw_also(sheet, x, y, width, height):
@@ -792,26 +948,28 @@ def draw_also(sheet, x, y, width, height):
     column_width = (width - 12) / 2
     half = (len(ALSO) + 1) // 2
     for index, item in enumerate(ALSO):
-        number, city, text, source, _, _ = item
         column, row = divmod(index, half)
         cx = x + column * (column_width + 12)
-        ry = y + 24 + row * 21.0
-        put_text(sheet, cx, ry, str(number), 8.5, RED, SANS, weight=2)
-        city_size = fit_size(city, column_width - 76, 8.5, 6.5, SANS, 0.2, 0.82)
-        caps(sheet, cx + 17, ry, city, city_size, INK,
-             weight=2, tracking=0.2, squeeze=0.82)
-        src_w = text_width(source, 7, SANS, 0, 0.84)
-        if src_w < column_width - 130:
-            caps(sheet, cx + column_width - src_w, ry + 1, source, 7,
-                 MUTED, weight=1, squeeze=0.84)
-        line = clipped(text, 8, column_width - 20, 1, SANS, 0, 0.94)[0]
-        put_text(sheet, cx + 17, ry + 10, line, 8, (64, 60, 54),
+        ry = y + 24 + row * 15.0
+        put_text(sheet, cx, ry, item['pin'], 8, OXBLOOD, SANS, weight=2)
+        city_size = fit_size(item['city'], 66, 7.4, 6.2, SANS, 0.1, 0.8)
+        caps(sheet, cx + 16, ry, item['city'], city_size, INK,
+             weight=2, tracking=0.1, squeeze=0.8)
+        source = item['source']
+        source_w = text_width(source, 6.5, SANS, 0, 0.84)
+        show_source = source_w < 58
+        room = column_width - 92 - (source_w + 4 if show_source else 0)
+        line = clipped(item['short'], 7.2, room, 1, SANS, 0, 0.94)[0]
+        put_text(sheet, cx + 88, ry, line, 7.2, (64, 60, 54),
                  SANS, weight=1, squeeze=0.94)
+        if show_source:
+            caps(sheet, cx + column_width - source_w, ry, source, 6.5,
+                 MUTED, weight=1, squeeze=0.84)
 
 
 def draw_bottom(sheet):
-    draw_also(sheet, 28, 603, 586, 258)
-    draw_map(sheet, 624, 603, 372, 258)
+    draw_also(sheet, 28, 603, 540, 258)
+    draw_map(sheet, 580, 603, 416, 258)
 
 
 def draw_datecheck(sheet):
